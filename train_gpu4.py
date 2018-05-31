@@ -13,7 +13,7 @@ from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
 import torch.utils.model_zoo as model_zoo
-
+from graphviz import Digraph
 
 _imagenet_pca = {
     'eigval': torch.Tensor([0.2175, 0.0188, 0.0045]),
@@ -47,13 +47,13 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=168, metavar='N',
+parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=100, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.02, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -67,7 +67,7 @@ parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
 parser.add_argument('--resume', default='resume', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Shadow_imitation_gpu3', type=str,
+parser.add_argument('--name', default='Shadow_imitation_gpu', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
@@ -81,11 +81,10 @@ def main():
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-        # torch.cuda.set_device(0)
     global plotter 
     plotter = VisdomLinePlotter(env_name=args.name)
 
-    kwargs = {'num_workers': 20, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 2, 'pin_memory': True} if args.cuda else {}
 
     print('==>Preparing data...')
 
@@ -125,7 +124,7 @@ def main():
                 from collections import OrderedDict
                 new_state_dict = OrderedDict()
                 for k, v in checkpoint['state_dict'].items():
-                    namekey = k[7:]  # remove module.  TODO： check the meaning of 7 in here
+                    namekey = k[7:]  # remove `module.  TODO： check the meaning of 7 in here
                     new_state_dict[namekey] = v
                 jnet.load_state_dict(new_state_dict)
             else:
@@ -138,7 +137,7 @@ def main():
     if args.cuda:
         jnet.cuda()
         if torch.cuda.device_count() > 1:
-           jnet = nn.DataParallel(jnet,device_ids=[0,1])  # 使用dataParallel重新包装一下
+            jnet = nn.DataParallel(jnet)  # 使用dataParallel重新包装一下
 
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
@@ -177,6 +176,10 @@ def main():
 
 
 def train(train_loader, jnet, criterion, optimizer, epoch):
+    correct1 = 0.0
+    correct2 = 0.0
+    correct3 = 0.0
+    total = 0
     losses = AverageMeter()
     accs1 = AverageMeter()
     accs2 = AverageMeter()
@@ -192,16 +195,46 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
+        #print(joint_target.shape)
         pos_feature = jnet(data1)
-        loss = criterion(pos_feature, joint_target)
+        loss_joint = criterion(pos_feature, joint_target)
+
+        # joints constraits
+        F4 = [pos_feature[:,0],pos_feature[:,4],pos_feature[:,8], pos_feature[:,13]]
+        F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14],
+                pos_feature[:,2], pos_feature[:,6], pos_feature[:,10], pos_feature[:,15],
+                pos_feature[:,3], pos_feature[:,7], pos_feature[:,11], pos_feature[:,16],
+                pos_feature[:,21]]
+        loss_cons = 0
+
+        for pos in F1_3:
+            for f in pos:
+                loss_cons = max(0 - f, 0) + max(f - 1.57, 0)
+        for pos in F4:
+            for f in pos:
+                loss_cons = max(-0.349 - f, 0) + max(f - 0.349, 0)
+        for f in pos_feature[:,12]:
+            loss_cons = max(0 - f, 0) + max(f - 0.785, 0)
+        for f in pos_feature[:, 20]:
+            loss_cons = max(-0.524 - f, 0) + max(f - 0.524, 0)
+        for f in pos_feature[:, 19]:
+            loss_cons = max(-0.209 - f, 0) + max(f - 0.209, 0)
+        for f in pos_feature[:, 18]:
+            loss_cons = max(0 - f, 0) + max(f - 1.222, 0)
+        for f in pos_feature[:, 17]:
+            loss_cons = max(-1.047 - f, 0) + max(f - 1.047, 0)
+        #print(loss_joint)
+        loss = loss_joint + 0.1 * loss_cons
 
         # adjust_learning_rate(optimizer, epoch)
         optimizer.zero_grad()
         loss.backward()
-        if isinstance(jnet, nn.DataParallel):
-            optimizer.module.step()
-        else:
-            optimizer.step()
+        #g = make_dot(loss)
+        #g.view()
+        # if args.cuda and torch.cuda.device_count() > 1:
+        #     optimizer.module.step()
+        # else:
+        optimizer.step()
 
         acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
@@ -353,6 +386,57 @@ def accuracy(output, target, accuracy_thre):
                 correct += 1
         acc.append(correct/total)
     return acc
+
+
+def make_dot(var, params=None):
+    """ Produces Graphviz representation of PyTorch autograd graph
+    Blue nodes are the Variables that require grad, orange are Tensors
+    saved for backward in torch.autograd.Function
+    Args:
+        var: output Variable
+        params: dict of (name, Variable) to add names to node that
+            require grad (TODO: make optional)
+    """
+    if params is not None:
+        assert isinstance(params.values()[0], Variable)
+        param_map = {id(v): k for k, v in params.items()}
+
+    node_attr = dict(style='filled',
+                     shape='box',
+                     align='left',
+                     fontsize='12',
+                     ranksep='0.1',
+                     height='0.2')
+    dot = Digraph(node_attr=node_attr, graph_attr=dict(size="12,12"))
+    seen = set()
+
+    def size_to_str(size):
+        return '(' + (', ').join(['%d' % v for v in size]) + ')'
+
+    def add_nodes(var):
+        if var not in seen:
+            if torch.is_tensor(var):
+                dot.node(str(id(var)), size_to_str(var.size()), fillcolor='orange')
+            elif hasattr(var, 'variable'):
+                u = var.variable
+                name = param_map[id(u)] if params is not None else ''
+                node_name = '%s\n %s' % (name, size_to_str(u.size()))
+                dot.node(str(id(var)), node_name, fillcolor='lightblue')
+            else:
+                dot.node(str(id(var)), str(type(var).__name__))
+            seen.add(var)
+            if hasattr(var, 'next_functions'):
+                for u in var.next_functions:
+                    if u[0] is not None:
+                        dot.edge(str(id(u[0])), str(id(var)))
+                        add_nodes(u[0])
+            if hasattr(var, 'saved_tensors'):
+                for t in var.saved_tensors:
+                    dot.edge(str(id(t)), str(id(var)))
+                    add_nodes(t)
+
+    add_nodes(var.grad_fn)
+    return dot
 
 
 if __name__ == '__main__':

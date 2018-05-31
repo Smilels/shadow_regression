@@ -6,9 +6,9 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 import numpy as np
 
-class SimpleRegression1(nn.Module):
+class SimpleRegression(nn.Module):
     def __init__(self):
-        super(SimpleRegression1, self).__init__()
+        super(SimpleRegression, self).__init__()
         resnet = models.resnet18(pretrained=True)
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     data[0,1,1,1] = 10
     data[0,2,1,2] = 10
     # layer = SpatialSoftmax(3, 3, 3, temperature=1)
-    model = SimpleRegression1()
+    model = SimpleRegression()
     modules = list(model.children())
     # print(modules[0].spatialsoftmaxlayer.parameters)
     # print(model(data)[1])
