@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model_new import SimpleRegression
+from model_cmp import CMP
 from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
@@ -47,7 +47,7 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=168, metavar='N',
+parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=100, metavar='N',
                     help='input batch size for testing (default: 256)')
@@ -67,7 +67,7 @@ parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
 parser.add_argument('--resume', default='resume', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Shadow_imitation_gpu3', type=str,
+parser.add_argument('--name', default='Shadow_imitation_gpu', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
@@ -81,8 +81,7 @@ def main():
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-        # torch.cuda.set_device(0)
-    global plotter 
+    global plotter
     plotter = VisdomLinePlotter(env_name=args.name)
 
     kwargs = {'num_workers': 20, 'pin_memory': True} if args.cuda else {}
@@ -108,11 +107,10 @@ def main():
                                 transforms.Resize(256),
                                 transforms.CenterCrop(224),
                                 transforms.ToTensor(),
-                                # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
                             ])),
         batch_size=args.batch_size, drop_last=False, **kwargs)
 
-    jnet = SimpleRegression()
+    jnet = CMP()
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -125,7 +123,7 @@ def main():
                 from collections import OrderedDict
                 new_state_dict = OrderedDict()
                 for k, v in checkpoint['state_dict'].items():
-                    namekey = k[7:]  # remove module.  TODO： check the meaning of 7 in here
+                    namekey = k[7:]  # remove `module.  TODO： check the meaning of 7 in here
                     new_state_dict[namekey] = v
                 jnet.load_state_dict(new_state_dict)
             else:
@@ -138,7 +136,7 @@ def main():
     if args.cuda:
         jnet.cuda()
         if torch.cuda.device_count() > 1:
-           jnet = nn.DataParallel(jnet,device_ids=[0,1])  # 使用dataParallel重新包装一下
+            jnet = nn.DataParallel(jnet)  # 使用dataParallel重新包装一下
 
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
@@ -146,8 +144,8 @@ def main():
 
     criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
-    if args.cuda and torch.cuda.device_count() > 1:
-        optimizer = nn.DataParallel(optimizer,device_ids=[0,1])
+    # if args.cuda and torch.cuda.device_count() > 1:
+    #     optimizer = nn.DataParallel(optimizer)
 
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
@@ -171,10 +169,6 @@ def main():
                 'best_prec1': best_acc,
             }, is_best)
 
-        # state_dict() Returns a dictionary containing a whole state of the module.
-        # Both parameters and persistent buffers (e.g. running averages) are included.
-        # Keys are corresponding parameter and buffer names.
-
 
 def train(train_loader, jnet, criterion, optimizer, epoch):
     losses = AverageMeter()
@@ -192,18 +186,27 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        pos_feature = jnet(data1)
-        loss = criterion(pos_feature, joint_target)
+        joint_feature1, _ = jnet(data1)
+        feature1, feature2, feature3, feature4, feature5, feature6 = model(data1)
+
+        loss1 = criterion(feature1, joint_target)
+        loss2 = criterion(feature2, joint_target)
+        loss3 = criterion(feature3, joint_target)
+        loss4 = criterion(feature4, joint_target)
+        loss5 = criterion(feature5, joint_target)
+        loss6 = criterion(feature6, joint_target)
+
+        loss = loss1 + loss2 + loss3 + loss4 + loss5 + loss6
 
         # adjust_learning_rate(optimizer, epoch)
         optimizer.zero_grad()
         loss.backward()
-        if isinstance(jnet, nn.DataParallel):
-            optimizer.module.step()
-        else:
-            optimizer.step()
+        # if args.cuda and torch.cuda.device_count() > 1:
+        #     optimizer.module.step()
+        # else:
+        optimizer.step()
 
-        acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        acc = accuracy(feature6, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
         ll = loss.data
         losses.update(ll, data1.size(0))
@@ -230,10 +233,6 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
 
 
 def test(test_loader, jnet, criterion, epoch):
-    correct1 = 0.0
-    correct2 = 0.0
-    correct3 = 0.0
-    total = 0
     losses = AverageMeter()
     accs1 = AverageMeter()
     accs2 = AverageMeter()
@@ -249,10 +248,19 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        pos_feature = jnet(data1)
-        loss = criterion(pos_feature, joint_target)
+        joint_feature1, _ = jnet(data1)
+        feature1, feature2, feature3, feature4, feature5, feature6 = model(data1)
 
-        acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        loss1 = criterion(feature1, joint_target) * heat_weight
+        loss2 = criterion(feature2, joint_target) * heat_weight
+        loss3 = criterion(feature3, joint_target) * heat_weight
+        loss4 = criterion(feature4, joint_target) * heat_weight
+        loss5 = criterion(feature5, joint_target) * heat_weight
+        loss6 = criterion(feature6, joint_target) * heat_weight
+
+        loss = loss1 + loss2 + loss3 + loss4 + loss5 + loss6
+
+        acc = accuracy(feature6, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         ll = loss.data
         losses.update(ll, data1.size(0))
         accs1.update(acc[0], data1.size(0))
@@ -354,5 +362,6 @@ def accuracy(output, target, accuracy_thre):
         acc.append(correct/total)
     return acc
 
+
 if __name__ == '__main__':
-    main()    
+    main()
