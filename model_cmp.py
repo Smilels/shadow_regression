@@ -18,10 +18,11 @@ class CPM(nn.Module):
         self.conv4_stage1 = nn.Conv2d(128, 32, kernel_size=5, padding=2)
         self.conv5_stage1 = nn.Conv2d(32, 512, kernel_size=9, padding=4)
         self.conv6_stage1 = nn.Conv2d(512, 512, kernel_size=1)
-        self.conv7_stage1 = nn.Conv2d(512, self.out_c, kernel_size=1) # 22, 46, 46
+        self.conv7_stage1 = nn.Conv2d(512, self.out_c, kernel_size=1) # 22, 45, 45
+
 
         self.feature = nn.Sequential(
-            nn.Linear(out_c * 46 * 46, 128),
+            nn.Linear(out_c * 45 * 45, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
@@ -87,7 +88,6 @@ class CPM(nn.Module):
         x = F.relu(self.conv5_stage1(x))
         x = F.relu(self.conv6_stage1(x))
         x = self.conv7_stage1(x)
-        x = self.feature(x)
 
         return x
 
@@ -195,35 +195,33 @@ class CPM(nn.Module):
 
     def forward(self, image):
         assert tuple(image.data.shape[-2:]) == (self.img_h, self.img_w)
-
         conv7_stage1_map = self._stage1(image)  # result of stage 1
-        conv7_stage1_map_feature = conv7_stage1_map.view(-1, 22 * 46 * 46)
+        conv7_stage1_map_feature = conv7_stage1_map.view(-1, 22 * 45 * 45)
         joints_stage1 = self.feature(conv7_stage1_map_feature)
 
         pool3_stage2_map = self._middle(image)
 
-        Mconv5_stage2_map = self._stage2(pool3_stage2_map, joints_stage1)  # result of stage 2
-        Mconv5_stage2_map_feature = Mconv5_stage2_map.view(-1, 22 * 46 * 46)
+        Mconv5_stage2_map = self._stage2(pool3_stage2_map, conv7_stage1_map)  # result of stage 2
+        Mconv5_stage2_map_feature = Mconv5_stage2_map.view(-1, 22 * 45 * 45)
         joints_stage2 = self.feature(Mconv5_stage2_map_feature)
 
         Mconv5_stage3_map = self._stage3(pool3_stage2_map, Mconv5_stage2_map)  # result of stage 3
-        Mconv5_stage3_map_feature = Mconv5_stage3_map.view(-1, 22 * 46 * 46)
+        Mconv5_stage3_map_feature = Mconv5_stage3_map.view(-1, 22 * 45 * 45)
         joints_stage3 = self.feature(Mconv5_stage3_map_feature)
 
         Mconv5_stage4_map = self._stage4(pool3_stage2_map, Mconv5_stage3_map)  # result of stage 4
-        Mconv5_stage4_map_feature = Mconv5_stage4_map.view(-1, 22 * 46 * 46)
+        Mconv5_stage4_map_feature = Mconv5_stage4_map.view(-1, 22 * 45 * 45)
         joints_stage4= self.feature(Mconv5_stage4_map_feature)
 
         Mconv5_stage5_map = self._stage5(pool3_stage2_map, Mconv5_stage4_map)  # result of stage 5
-        Mconv5_stage5_map_feature = Mconv5_stage5_map.view(-1, 22 * 46 * 46)
+        Mconv5_stage5_map_feature = Mconv5_stage5_map.view(-1, 22 * 45 * 45)
         joints_stage5 = self.feature(Mconv5_stage5_map_feature)
 
         Mconv5_stage6_map = self._stage6(pool3_stage2_map, Mconv5_stage5_map)  # result of stage 6
-        Mconv5_stage6_map_feature = Mconv5_stage6_map.view(-1, 22 * 46 * 46)
+        Mconv5_stage6_map_feature = Mconv5_stage6_map.view(-1, 22 * 45 * 45)
         joints_stage6 = self.feature(Mconv5_stage6_map_feature)
 
-        return torch.stack([joints_stage1, joints_stage2, joints_stage3,
-                            joints_stage4, joints_stage5, joints_stage6], dim=1)
+        return joints_stage1, joints_stage2, joints_stage3,joints_stage4, joints_stage5, joints_stage6
 
 
 def mse_loss(pred_6, target, weight=None, weighted_loss=False, size_average=True):

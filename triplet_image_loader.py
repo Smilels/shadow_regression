@@ -179,7 +179,6 @@ class SimpleImageLoader(torch.utils.data.Dataset):
         #     joints.append(float(l.split(',')[0]))
         joints = [float(l.split(',')[0]) for l in self.label[index]]
         # joints = np.array(joints) # [24,1]
-
         if self.transform is not None:
             img = self.transform(img)
 
