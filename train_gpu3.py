@@ -354,6 +354,5 @@ def accuracy(output, target, accuracy_thre):
         acc.append(correct/total)
     return acc
 
-
 if __name__ == '__main__':
     main()    

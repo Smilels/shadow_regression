@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model import SimpleRegression
+from model_cmp import CMP
 from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
@@ -110,7 +110,7 @@ def main():
                             ])),
         batch_size=args.batch_size, drop_last=False, **kwargs)
 
-    jnet = SimpleRegression()
+    jnet = CMP()
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -169,10 +169,6 @@ def main():
                 'best_prec1': best_acc,
             }, is_best)
 
-        # state_dict() Returns a dictionary containing a whole state of the module.
-        # Both parameters and persistent buffers (e.g. running averages) are included.
-        # Keys are corresponding parameter and buffer names.
-
 
 def train(train_loader, jnet, criterion, optimizer, epoch):
     losses = AverageMeter()
@@ -190,31 +186,15 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        pos_feature, _ = jnet(data1)
-        loss = criterion(pos_feature, joint_target)
-    for i, (input, heatmap, centermap) in enumerate(train_loader):
+        joint_feature1, _ = jnet(data1)
+        feature1, feature2, feature3, feature4, feature5, feature6 = model(data1)
 
-        learning_rate = adjust_learning_rate(optimizer, iters, config.base_lr, policy=config.lr_policy,
-                                             policy_parameter=config.policy_parameter, multiple=multiple)
-        data_time.update(time.time() - end)
-
-        heatmap = heatmap.cuda(async=True)
-        centermap = centermap.cuda(async=True)
-
-        input_var = torch.autograd.Variable(input)
-        heatmap_var = torch.autograd.Variable(heatmap)
-        centermap_var = torch.autograd.Variable(centermap)
-
-
-        heat1, heat2, heat3, heat4, heat5, heat6 = model(input_var, centermap_var)
-
-        loss1 = criterion(heat1, heatmap_var) * heat_weight
-        loss2 = criterion(heat2, heatmap_var) * heat_weight
-        loss3 = criterion(heat3, heatmap_var) * heat_weight
-        loss4 = criterion(heat4, heatmap_var) * heat_weight
-        loss5 = criterion(heat5, heatmap_var) * heat_weight
-        loss6 = criterion(heat6, heatmap_var) * heat_weight
-
+        loss1 = criterion(feature1, joint_target)
+        loss2 = criterion(feature2, joint_target)
+        loss3 = criterion(feature3, joint_target)
+        loss4 = criterion(feature4, joint_target)
+        loss5 = criterion(feature5, joint_target)
+        loss6 = criterion(feature6, joint_target)
 
         loss = loss1 + loss2 + loss3 + loss4 + loss5 + loss6
 
@@ -226,7 +206,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         # else:
         optimizer.step()
 
-        acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        acc = accuracy(feature6, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
         ll = loss.data
         losses.update(ll, data1.size(0))
@@ -268,10 +248,19 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        pos_feature, _ = jnet(data1)
-        loss = criterion(pos_feature, joint_target)
+        joint_feature1, _ = jnet(data1)
+        feature1, feature2, feature3, feature4, feature5, feature6 = model(data1)
 
-        acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        loss1 = criterion(feature1, joint_target) * heat_weight
+        loss2 = criterion(feature2, joint_target) * heat_weight
+        loss3 = criterion(feature3, joint_target) * heat_weight
+        loss4 = criterion(feature4, joint_target) * heat_weight
+        loss5 = criterion(feature5, joint_target) * heat_weight
+        loss6 = criterion(feature6, joint_target) * heat_weight
+
+        loss = loss1 + loss2 + loss3 + loss4 + loss5 + loss6
+
+        acc = accuracy(feature6, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         ll = loss.data
         losses.update(ll, data1.size(0))
         accs1.update(acc[0], data1.size(0))
@@ -364,7 +353,7 @@ def accuracy(output, target, accuracy_thre):
     """Computes the precision@k for the specified values of k"""
     acc=[]
     total = target.size(0)
-    dist = (output - target).abs().max(0)[0]
+    dist = (output - target).abs().max(1)[0]
     for k in accuracy_thre:
         correct = 0
         for i in dist:
