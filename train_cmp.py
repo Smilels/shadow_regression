@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model_cmp import CMP
+from model_cmp import CPM
 from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
@@ -47,9 +47,9 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=128, metavar='N',
+parser.add_argument('--batch-size', type=int, default=60, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--test-batch-size', type=int, default=100, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
@@ -67,7 +67,7 @@ parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
 parser.add_argument('--resume', default='resume', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Shadow_imitation_gpu', type=str,
+parser.add_argument('--name', default='Shadow_imitation_cmp', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
@@ -81,19 +81,20 @@ def main():
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
+       # torch.cuda.set_device(3)
     global plotter
     plotter = VisdomLinePlotter(env_name=args.name)
 
-    kwargs = {'num_workers': 20, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 10, 'pin_memory': True} if args.cuda else {}
 
     print('==>Preparing data...')
 
-    base_path = "./data/handpose_data/"
+    base_path = "./data/handpose_data_cpm/"
     train_loader = torch.utils.data.DataLoader(
         SimpleImageLoader(base_path, train=True,
                             transform=transforms.Compose([
-                                transforms.Resize(256),
-                                transforms.CenterCrop(224),
+                                transforms.Resize(380),
+                                transforms.CenterCrop(368),
                                 transforms.ColorJitter(0.05, 0.05, 0.05, 0.05),
                                 transforms.ToTensor(),
                                 Lighting(0.1, _imagenet_pca['eigval'], _imagenet_pca['eigvec']),
@@ -104,13 +105,13 @@ def main():
     test_loader = torch.utils.data.DataLoader(
         SimpleImageLoader(base_path, False,
                         transform=transforms.Compose([
-                                transforms.Resize(256),
-                                transforms.CenterCrop(224),
+                                transforms.Resize(380),
+                                transforms.CenterCrop(368),
                                 transforms.ToTensor(),
                             ])),
         batch_size=args.batch_size, drop_last=False, **kwargs)
 
-    jnet = CMP()
+    jnet = CPM(22)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -135,8 +136,8 @@ def main():
 
     if args.cuda:
         jnet.cuda()
-        if torch.cuda.device_count() > 1:
-            jnet = nn.DataParallel(jnet)  # 使用dataParallel重新包装一下
+        #if torch.cuda.device_count() > 1:
+         #   jnet = nn.DataParallel(jnet,device_ids=[2,3])  # 使用dataParallel重新包装一下
 
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
@@ -144,8 +145,8 @@ def main():
 
     criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
-    # if args.cuda and torch.cuda.device_count() > 1:
-    #     optimizer = nn.DataParallel(optimizer)
+    #if args.cuda and torch.cuda.device_count() > 1:
+     #   optimizer = nn.DataParallel(optimizer,device_ids=[2,3])
 
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
@@ -186,8 +187,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        joint_feature1, _ = jnet(data1)
-        feature1, feature2, feature3, feature4, feature5, feature6 = model(data1)
+        feature1, feature2, feature3, feature4, feature5, feature6 = jnet(data1)
 
         loss1 = criterion(feature1, joint_target)
         loss2 = criterion(feature2, joint_target)
@@ -201,10 +201,10 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         # adjust_learning_rate(optimizer, epoch)
         optimizer.zero_grad()
         loss.backward()
-        # if args.cuda and torch.cuda.device_count() > 1:
-        #     optimizer.module.step()
-        # else:
-        optimizer.step()
+        if isinstance(jnet, nn.DataParallel):
+            optimizer.module.step()
+        else:
+             optimizer.step()
 
         acc = accuracy(feature6, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
@@ -248,8 +248,7 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        joint_feature1, _ = jnet(data1)
-        feature1, feature2, feature3, feature4, feature5, feature6 = model(data1)
+        feature1, feature2, feature3, feature4, feature5, feature6 = jnet(data1)
 
         loss1 = criterion(feature1, joint_target) * heat_weight
         loss2 = criterion(feature2, joint_target) * heat_weight
