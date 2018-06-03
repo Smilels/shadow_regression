@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model_cmp import CPM
+from model_cmp_fus import CPM
 from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
@@ -47,13 +47,13 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=2, metavar='N',
+parser.add_argument('--batch-size', type=int, default=12, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+parser.add_argument('--lr', type=float, default=0, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -187,16 +187,8 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, feature2, feature3, feature4, feature5, feature6 = jnet(data1)
-
-        loss1 = criterion(feature1, joint_target)
-        loss2 = criterion(feature2, joint_target)
-        loss3 = criterion(feature3, joint_target)
-        loss4 = criterion(feature4, joint_target)
-        loss5 = criterion(feature5, joint_target)
-        loss6 = criterion(feature6, joint_target)
-
-        loss = loss1 + loss2 + loss3 + loss4 + loss5 + loss6
+        feature = jnet(data1)
+        loss = criterion(feature, joint_target)
 
         # adjust_learning_rate(optimizer, epoch)
         optimizer.zero_grad()
@@ -205,7 +197,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
             optimizer.module.step()
         else:
              optimizer.step()
-	#params=model.state_dict()
+	#params=model.state_dict() 
         #if isinstance(jnet, nn.DataParallel):
          #   params = jnet.module.state_dict(),
         #else:
@@ -214,7 +206,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         #plotter.plot('last fc weight', 'weight', epoch, list(modules[-1].children())[-1].weight)
         #plotter.plot('last fc bias', 'bias', epoch, list(modules[-1].children())[-1].bias)
 
-        acc = accuracy(feature6, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        acc = accuracy(feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
         ll = loss.data
         losses.update(ll, data1.size(0))
@@ -256,17 +248,11 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, feature2, feature3, feature4, feature5, feature6 = jnet(data1)
+        feature = jnet(data1)
 
-        loss1 = criterion(feature1, joint_target)
-        loss2 = criterion(feature2, joint_target)
-        loss3 = criterion(feature3, joint_target)
-        loss4 = criterion(feature4, joint_target)
-        loss5 = criterion(feature5, joint_target)
-        loss6 = criterion(feature6, joint_target)
-        loss = loss1 + loss2 + loss3 + loss4 + loss5 + loss6
+        loss = criterion(feature, joint_target) 
 
-        acc = accuracy(feature6, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        acc = accuracy(feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         ll = loss.data
         losses.update(ll, data1.size(0))
         accs1.update(acc[0], data1.size(0))

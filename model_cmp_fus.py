@@ -21,8 +21,8 @@ class CPM(nn.Module):
         self.conv7_stage1 = nn.Conv2d(512, self.out_c, kernel_size=1) # 22, 45, 45
 
 
-        self.feature_stage1 = nn.Sequential(
-            nn.Linear(out_c * 45 * 45, 128),
+        self.feature = nn.Sequential(
+            nn.Linear(out_c * 45 * 45 * 4, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
@@ -42,13 +42,6 @@ class CPM(nn.Module):
         self.Mconv3_stage2 = nn.Conv2d(128, 128, kernel_size=11, padding=5)
         self.Mconv4_stage2 = nn.Conv2d(128, 128, kernel_size=1, padding=0)
         self.Mconv5_stage2 = nn.Conv2d(128, self.out_c, kernel_size=1, padding=0)
-        self.feature_stage2 = nn.Sequential(
-            nn.Linear(out_c * 45 * 45, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 22)
-        )
         self.conv1_stage3 = nn.Conv2d(128, 32, kernel_size=5, padding=2)
 
         self.Mconv1_stage3 = nn.Conv2d(32 + self.out_c, 128, kernel_size=11, padding=5)
@@ -56,13 +49,6 @@ class CPM(nn.Module):
         self.Mconv3_stage3 = nn.Conv2d(128, 128, kernel_size=11, padding=5)
         self.Mconv4_stage3 = nn.Conv2d(128, 128, kernel_size=1, padding=0)
         self.Mconv5_stage3 = nn.Conv2d(128, self.out_c, kernel_size=1, padding=0)
-        self.feature_stage3 = nn.Sequential(
-            nn.Linear(out_c * 45 * 45, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 22)
-        )
         self.conv1_stage4 = nn.Conv2d(128, 32, kernel_size=5, padding=2)
 
         self.Mconv1_stage4 = nn.Conv2d(32 + self.out_c, 128, kernel_size=11, padding=5)
@@ -70,13 +56,6 @@ class CPM(nn.Module):
         self.Mconv3_stage4 = nn.Conv2d(128, 128, kernel_size=11, padding=5)
         self.Mconv4_stage4 = nn.Conv2d(128, 128, kernel_size=1, padding=0)
         self.Mconv5_stage4 = nn.Conv2d(128, self.out_c, kernel_size=1, padding=0)
-        self.feature_stage4 = nn.Sequential(
-            nn.Linear(out_c * 45 * 45, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 22)
-        )
         self.conv1_stage5 = nn.Conv2d(128, 32, kernel_size=5, padding=2)
 
         self.Mconv1_stage5 = nn.Conv2d(32 + self.out_c, 128, kernel_size=11, padding=5)
@@ -84,13 +63,6 @@ class CPM(nn.Module):
         self.Mconv3_stage5 = nn.Conv2d(128, 128, kernel_size=11, padding=5)
         self.Mconv4_stage5 = nn.Conv2d(128, 128, kernel_size=1, padding=0)
         self.Mconv5_stage5 = nn.Conv2d(128, self.out_c, kernel_size=1, padding=0)
-        self.feature_stage5 = nn.Sequential(
-            nn.Linear(out_c * 45 * 45, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 22)
-        )
         self.conv1_stage6 = nn.Conv2d(128, 32, kernel_size=5, padding=2)
 
         self.Mconv1_stage6 = nn.Conv2d(32 + self.out_c, 128, kernel_size=11, padding=5)
@@ -98,13 +70,6 @@ class CPM(nn.Module):
         self.Mconv3_stage6 = nn.Conv2d(128, 128, kernel_size=11, padding=5)
         self.Mconv4_stage6 = nn.Conv2d(128, 128, kernel_size=1, padding=0)
         self.Mconv5_stage6 = nn.Conv2d(128, self.out_c, kernel_size=1, padding=0)
-        self.feature_stage6 = nn.Sequential(
-            nn.Linear(out_c * 45 * 45, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 22)
-        )
     def _stage1(self, image):
         """
         Output result of stage 1
@@ -227,31 +192,18 @@ class CPM(nn.Module):
         assert tuple(image.data.shape[-2:]) == (self.img_h, self.img_w)
         conv7_stage1_map = self._stage1(image)  # result of stage 1
         conv7_stage1_map_feature = conv7_stage1_map.view(-1, 22 * 45 * 45)
-        joints_stage1 = self.feature_stage1(conv7_stage1_map_feature)
-
         pool3_stage2_map = self._middle(image)
 
         Mconv5_stage2_map = self._stage2(pool3_stage2_map, conv7_stage1_map)  # result of stage 2
         Mconv5_stage2_map_feature = Mconv5_stage2_map.view(-1, 22 * 45 * 45)
-        joints_stage2 = self.feature_stage2(Mconv5_stage2_map_feature)
-
         Mconv5_stage3_map = self._stage3(pool3_stage2_map, Mconv5_stage2_map)  # result of stage 3
         Mconv5_stage3_map_feature = Mconv5_stage3_map.view(-1, 22 * 45 * 45)
-        joints_stage3 = self.feature_stage3(Mconv5_stage3_map_feature)
-
-        Mconv5_stage4_map = self._stage4(pool3_stage2_map, Mconv5_stage3_map)  # result of stage 4
+        Mconv5_stage4_map = self._stage4(pool3_stage2_map, Mconv5_stage3_map)  # result of stage 4#
         Mconv5_stage4_map_feature = Mconv5_stage4_map.view(-1, 22 * 45 * 45)
-        joints_stage4= self.feature_stage4(Mconv5_stage4_map_feature)
+        feature_map = torch.cat((conv7_stage1_map_feature,Mconv5_stage2_map_feature,Mconv5_stage3_map_feature, Mconv5_stage4_map_feature), dim=1) 
+        joints = self.feature(feature_map)
 
-        Mconv5_stage5_map = self._stage5(pool3_stage2_map, Mconv5_stage4_map)  # result of stage 5
-        Mconv5_stage5_map_feature = Mconv5_stage5_map.view(-1, 22 * 45 * 45)
-        joints_stage5 = self.feature_stage5(Mconv5_stage5_map_feature)
-
-        Mconv5_stage6_map = self._stage6(pool3_stage2_map, Mconv5_stage5_map)  # result of stage 6
-        Mconv5_stage6_map_feature = Mconv5_stage6_map.view(-1, 22 * 45 * 45)
-        joints_stage6 = self.feature_stage6(Mconv5_stage6_map_feature)
-
-        return joints_stage1, joints_stage2, joints_stage3,joints_stage4, joints_stage5, joints_stage6
+        return joints
 
 
 def mse_loss(pred_6, target, weight=None, weighted_loss=False, size_average=True):
