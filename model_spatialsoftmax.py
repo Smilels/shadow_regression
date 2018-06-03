@@ -110,9 +110,9 @@ class JointsResNetEmbedSpatial(nn.Module):
         return pos_feature, fb_feature, lb_feature
 
 # one camera
-class SimpleRegression(nn.Module):
+class JointRegression(nn.Module):
     def __init__(self):
-        super(SimpleRegression, self).__init__()
+        super(JointRegression, self).__init__()
         self.spa_c = 128
         self.feature = ResNetEmbedSpatial(spatial_channel=self.spa_c)
         for param in self.feature.parameters():

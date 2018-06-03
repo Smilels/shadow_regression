@@ -13,7 +13,6 @@ from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
 import torch.utils.model_zoo as model_zoo
-from graphviz import Digraph
 
 _imagenet_pca = {
     'eigval': torch.Tensor([0.2175, 0.0188, 0.0045]),
@@ -47,13 +46,13 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=10, metavar='N',
+parser.add_argument('--batch-size', type=int, default=120, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--test-batch-size', type=int, default=100, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=600, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.02, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -67,7 +66,7 @@ parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
 parser.add_argument('--resume', default='resume', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Shadow_imitation_gpu', type=str,
+parser.add_argument('--name', default='Shadow_imitation_gpu4', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
@@ -81,10 +80,11 @@ def main():
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-    global plotter 
+        torch.cuda.set_device(3)
+    global plotter
     plotter = VisdomLinePlotter(env_name=args.name)
 
-    kwargs = {'num_workers': 2, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 20, 'pin_memory': True} if args.cuda else {}
 
     print('==>Preparing data...')
 
@@ -124,7 +124,7 @@ def main():
                 from collections import OrderedDict
                 new_state_dict = OrderedDict()
                 for k, v in checkpoint['state_dict'].items():
-                    namekey = k[7:]  # remove `module.  TODO： check the meaning of 7 in here
+                    namekey = k[7:]  # remove module.  TODO: check the meaning of 7 in here
                     new_state_dict[namekey] = v
                 jnet.load_state_dict(new_state_dict)
             else:
@@ -136,8 +136,8 @@ def main():
 
     if args.cuda:
         jnet.cuda()
-        if torch.cuda.device_count() > 1:
-            jnet = nn.DataParallel(jnet)  # 使用dataParallel重新包装一下
+        #if torch.cuda.device_count() > 1:
+         #   jnet = nn.DataParallel(jnet)  # dataParallel
 
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
@@ -145,11 +145,12 @@ def main():
 
     criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
-    if args.cuda and torch.cuda.device_count() > 1:
+    if isinstance(jnet, nn.DataParallel):
         optimizer = nn.DataParallel(optimizer,device_ids=[0,1])
 
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
+        adjust_learning_rate(jnet, optimizer, epoch)
         train(train_loader, jnet, criterion, optimizer, epoch)
         # evaluate on validation set
         acc = test(test_loader, jnet, criterion, epoch)
@@ -195,46 +196,46 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        #print(joint_target.shape)
+       # print("joint target is ",joint_target)
         pos_feature = jnet(data1)
         loss_joint = criterion(pos_feature, joint_target)
-
-        # joints constraits
-        F4 = [pos_feature[:,0],pos_feature[:,4],pos_feature[:,8], pos_feature[:,13]]
+       # print("loss_joint is ",loss_joint)
+       # print("pos_feature is ", pos_feature)
+	# joints constraits
+        F4 = [pos_feature[:,3],pos_feature[:,7],pos_feature[:,12], pos_feature[:,16]]
         F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14],
                 pos_feature[:,2], pos_feature[:,6], pos_feature[:,10], pos_feature[:,15],
-                pos_feature[:,3], pos_feature[:,7], pos_feature[:,11], pos_feature[:,16],
-                pos_feature[:,21]]
+                pos_feature[:,0], pos_feature[:,4], pos_feature[:,11], pos_feature[:,13],
+                pos_feature[:,17]]
         loss_cons = 0
 
         for pos in F1_3:
             for f in pos:
-                loss_cons = max(0 - f, 0) + max(f - 1.57, 0)
+                loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
         for pos in F4:
             for f in pos:
-                loss_cons = max(-0.349 - f, 0) + max(f - 0.349, 0)
-        for f in pos_feature[:,12]:
-            loss_cons = max(0 - f, 0) + max(f - 0.785, 0)
-        for f in pos_feature[:, 20]:
-            loss_cons = max(-0.524 - f, 0) + max(f - 0.524, 0)
-        for f in pos_feature[:, 19]:
-            loss_cons = max(-0.209 - f, 0) + max(f - 0.209, 0)
+                loss_cons =  loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
+        for f in pos_feature[:,8]:
+            loss_cons =  loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
         for f in pos_feature[:, 18]:
-            loss_cons = max(0 - f, 0) + max(f - 1.222, 0)
-        for f in pos_feature[:, 17]:
-            loss_cons = max(-1.047 - f, 0) + max(f - 1.047, 0)
-        #print(loss_joint)
-        loss = loss_joint + 0.1 * loss_cons
-
-        # adjust_learning_rate(optimizer, epoch)
+            loss_cons =  loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
+        for f in pos_feature[:, 19]:
+            loss_cons =  loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
+        for f in pos_feature[:, 20]:
+            loss_cons =  loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
+        for f in pos_feature[:, 21]:
+            loss_cons =  loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
+        #print("loss_cons is", loss_cons)
+        loss = 10 * loss_joint + loss_cons
+       # print("loss is ",loss)
         optimizer.zero_grad()
         loss.backward()
         #g = make_dot(loss)
         #g.view()
-        # if args.cuda and torch.cuda.device_count() > 1:
-        #     optimizer.module.step()
-        # else:
-        optimizer.step()
+        if isinstance(jnet, nn.DataParallel):
+           optimizer.module.step()
+        else:
+           optimizer.step()
 
         acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
@@ -246,12 +247,12 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
 
         if batch_idx % args.log_interval == 0:
             print('Train Simple Epoch: {} [{}/{}]\t'
-                  'Loss: {:.4f} ({:.4f}) \t'
+                  'Loss: {:.4f} ({:.4f}) {:.4f}\t'
                   'Acc1: {:.2f}% ({:.2f}%) \t'
                   'Acc2: {:.2f}% ({:.2f}%) \t'
                   'Acc3: {:.2f}% ({:.2f}%) '.format(
                     epoch, batch_idx * len(data1), len(train_loader.dataset),
-                    losses.val, losses.avg, 100. * accs1.val, 100. * accs1.avg,
+                    losses.val, losses.avg, loss_cons, 100. * accs1.val, 100. * accs1.avg,
                     100. * accs2.val, 100. * accs2.avg,
                     100. * accs3.val, 100. * accs3.avg))
 
@@ -281,9 +282,38 @@ def test(test_loader, jnet, criterion, epoch):
 
         data1, joint_target = Variable(data1), Variable(joint_target)
 
-        # compute output
+      # compute output
+       # print("joint target is ",joint_target)
         pos_feature = jnet(data1)
-        loss = criterion(pos_feature, joint_target)
+        loss_joint = criterion(pos_feature, joint_target)
+       # print("loss_joint is ",loss_joint)
+       	# joints constraits
+        F4 = [pos_feature[:,3],pos_feature[:,7],pos_feature[:,12], pos_feature[:,16]]
+        F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14],
+                pos_feature[:,2], pos_feature[:,6], pos_feature[:,10], pos_feature[:,15],
+                pos_feature[:,0], pos_feature[:,4], pos_feature[:,11], pos_feature[:,13],
+                pos_feature[:,17]]
+        loss_cons = 0
+
+        for pos in F1_3:
+            for f in pos:
+                loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
+        for pos in F4:
+            for f in pos:
+                loss_cons =  loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
+        for f in pos_feature[:,8]:
+            loss_cons =  loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
+        for f in pos_feature[:, 18]:
+            loss_cons =  loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
+        for f in pos_feature[:, 19]:
+            loss_cons =  loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
+        for f in pos_feature[:, 20]:
+            loss_cons =  loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
+        for f in pos_feature[:, 21]:
+            loss_cons =  loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
+       # print("loss_cons is", loss_cons)
+        loss = loss_joint + 0.1 * loss_cons
+       # print("loss is ",loss)
 
         acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         ll = loss.data
@@ -366,12 +396,18 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch):
+def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
     lr = args.lr * (0.5 ** (epoch // 50))
-    for param_group in optimizer.param_groups:
-        # for param_group in optimizer.module.param_groups:
-        param_group['lr'] = lr
+    print("current laerning rate is ", lr)
+    if isinstance(jnet, nn.DataParallel):
+       for param_group in optimizer.module.param_groups:
+          param_group['lr'] = lr
+    else:
+       for param_group in optimizer.param_groups:
+          # for param_group in optimizer.module.param_groups:
+          param_group['lr'] = lr
+
 
 
 def accuracy(output, target, accuracy_thre):
@@ -379,6 +415,7 @@ def accuracy(output, target, accuracy_thre):
     acc=[]
     total = target.size(0)
     dist = (output - target).abs().max(1)[0]
+    #print("dist is", dist)
     for k in accuracy_thre:
         correct = 0
         for i in dist:

@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model_cmp import CPM6
+from model_cmp import CPM
 from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
@@ -47,7 +47,7 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=12, metavar='N',
+parser.add_argument('--batch-size', type=int, default=2, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                     help='input batch size for testing (default: 256)')
@@ -71,8 +71,6 @@ parser.add_argument('--name', default='Shadow_imitation_cmp', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
-parser.add_argument('--parallel', action='store_true', default=True, 
-                    help='data parallel')
 best_acc = 0
 
 
@@ -113,14 +111,7 @@ def main():
                             ])),
         batch_size=args.batch_size, drop_last=False, **kwargs)
 
-    jnet = CPM6(22)
-    if args.cuda:
-        jnet.cuda()
-        if torch.cuda.device_count() > 1 and args.parallel:
-           jnet = nn.DataParallel(jnet,device_ids=[0,1,2])
-    # This flag allows you to enable the inbuilt cudnn auto-tuner to
-    # find the best algorithm to use for your hardware.
-    cudnn.benchmark = True
+    jnet = CPM(22)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -143,14 +134,22 @@ def main():
         else:
             print("==> no checkpoint found at '{}'".format(args.resume))
 
+    if args.cuda:
+        jnet.cuda()
+        if torch.cuda.device_count() > 1:
+           jnet = nn.DataParallel(jnet,device_ids=[0,1,2])  # 使用dataParallel重新包装一下
+
+    # This flag allows you to enable the inbuilt cudnn auto-tuner to
+    # find the best algorithm to use for your hardware.
+    cudnn.benchmark = True
+
     criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
-    if isinstance(jnet, nn.DataParallel):
+    if args.cuda and torch.cuda.device_count() > 1:
         optimizer = nn.DataParallel(optimizer,device_ids=[0,1,2])
 
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
-        adjust_learning_rate(jnet,optimizer, epoch)
         train(train_loader, jnet, criterion, optimizer, epoch)
         # evaluate on validation set
         acc = test(test_loader, jnet, criterion, epoch)
@@ -199,6 +198,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
 
         loss = loss1 + loss2 + loss3 + loss4 + loss5 + loss6
 
+        # adjust_learning_rate(optimizer, epoch)
         optimizer.zero_grad()
         loss.backward()
         if isinstance(jnet, nn.DataParallel):
@@ -350,14 +350,12 @@ class AverageMeter(object):
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
     lr = args.lr * (0.5 ** (epoch // 50))
-    if isinstance(jnet, nn.DataParallel):
-       for param_group in optimizer.module.param_groups:
-           param_group['lr'] = lr
-    else:
-       for param_group in optimizer.param_groups:
-           param_group['lr'] = lr
+    for param_group in optimizer.param_groups:
+        # for param_group in optimizer.module.param_groups:
+        param_group['lr'] = lr
 
- accuracy(output, target, accuracy_thre):
+
+def accuracy(output, target, accuracy_thre):
     """Computes the precision@k for the specified values of k"""
     acc=[]
     total = target.size(0)
