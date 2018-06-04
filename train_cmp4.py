@@ -195,9 +195,9 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         loss3 = criterion(feature3, joint_target)
         loss4 = criterion(feature4, joint_target)
 
-        loss = loss1 + loss2 + loss3 + loss4
-	loss_cons = joints_constraits(feature4)
-	loss = loss + loss_cons
+        loss_joint = loss1 + loss2 + loss3 + loss4
+        loss_cons = joint_constraits(feature4)
+        loss = 10 * loss_joint + loss_cons
 
         optimizer.zero_grad()
         loss.backward()
@@ -205,7 +205,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
             optimizer.module.step()
         else:
              optimizer.step()
-	#params=model.state_dict()
+        #params=model.state_dict()
         #if isinstance(jnet, nn.DataParallel):
          #   params = jnet.module.state_dict(),
         #else:
@@ -262,9 +262,9 @@ def test(test_loader, jnet, criterion, epoch):
         loss2 = criterion(feature2, joint_target)
         loss3 = criterion(feature3, joint_target)
         loss4 = criterion(feature4, joint_target)
-        loss = loss1 + loss2 + loss3 + loss4
-	loss_cons = joint_constraits(feature4)
-	loss = loss + loss_cons
+        loss_joint = loss1 + loss2 + loss3 + loss4
+        loss_cons = joint_constraits(feature4)
+        loss = 10 * loss_joint + loss_cons
 
         acc = accuracy(feature4, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         ll = loss.data
@@ -293,26 +293,30 @@ def test(test_loader, jnet, criterion, epoch):
     return accs3.avg
 
 def joint_constraits(pos_feature):
-    F4 = [pos_feature[:,3],pos_feature[:,7],pos_feature[:,12], pos_feature[:,16]]
-    F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14], pos_feature[:,2], pos_feature[:,6], pos_feature[:,10], pos_feature[:,15], pos_feature[:,0], pos_feature[:,4], pos_feature[:,11], pos_feature[:,13], pos_feature[:,17]]
-   loss_cons = 0
-   for pos in F1_3:
-       for f in pos:
-           loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
-   for pos in F4:
-       for f in pos:
-           loss_cons =  loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
-   for f in pos_feature[:,8]:
-       loss_cons =  loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
-   for f in pos_feature[:, 18]:
-       loss_cons =  loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
-   for f in pos_feature[:, 19]:
-       loss_cons =  loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
-   for f in pos_feature[:, 20]:
-       loss_cons =  loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
-   for f in pos_feature[:, 21]:
-       loss_cons =  loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
-   return loss_cons
+    F4 = [pos_feature[:, 3], pos_feature[:, 7], pos_feature[:, 12], pos_feature[:, 16]]
+    F1_3 = [pos_feature[:, 1], pos_feature[:, 5], pos_feature[:, 9], pos_feature[:, 14],
+            pos_feature[:, 2], pos_feature[:, 6], pos_feature[:, 10], pos_feature[:, 15],
+            pos_feature[:, 0], pos_feature[:, 4], pos_feature[:, 11], pos_feature[:, 13],
+            pos_feature[:, 17]]
+    loss_cons = 0
+
+    for pos in F1_3:
+        for f in pos:
+            loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
+    for pos in F4:
+        for f in pos:
+            loss_cons = loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
+    for f in pos_feature[:, 8]:
+        loss_cons = loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
+    for f in pos_feature[:, 18]:
+        loss_cons = loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
+    for f in pos_feature[:, 19]:
+        loss_cons = loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
+    for f in pos_feature[:, 20]:
+        loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
+    for f in pos_feature[:, 21]:
+        loss_cons = loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
+    return loss_cons
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
@@ -369,7 +373,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch):
+def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
     lr = args.lr * (0.5 ** (epoch // 50))
     if isinstance(jnet, nn.DataParallel):

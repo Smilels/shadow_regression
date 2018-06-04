@@ -202,30 +202,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         loss_joint = criterion(pos_feature, joint_target)
         # print("loss_joint is ",loss_joint)
         # print("pos_feature is ", pos_feature)
-	# joints constraits
-        F4 = [pos_feature[:,3],pos_feature[:,7],pos_feature[:,12], pos_feature[:,16]]
-        F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14],
-                pos_feature[:,2], pos_feature[:,6], pos_feature[:,10], pos_feature[:,15],
-                pos_feature[:,0], pos_feature[:,4], pos_feature[:,11], pos_feature[:,13],
-                pos_feature[:,17]]
-        loss_cons = 0
-
-        for pos in F1_3:
-            for f in pos:
-                loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
-        for pos in F4:
-            for f in pos:
-                loss_cons =  loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
-        for f in pos_feature[:,8]:
-            loss_cons =  loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
-        for f in pos_feature[:, 18]:
-            loss_cons =  loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
-        for f in pos_feature[:, 19]:
-            loss_cons =  loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
-        for f in pos_feature[:, 20]:
-            loss_cons =  loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
-        for f in pos_feature[:, 21]:
-            loss_cons =  loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
+        loss_cons = joint_constraits(pos_feature)
         #print("loss_cons is", loss_cons)
         loss = 10 * loss_joint + loss_cons
        # print("loss is ",loss)
@@ -283,38 +260,15 @@ def test(test_loader, jnet, criterion, epoch):
 
         data1, joint_target = Variable(data1), Variable(joint_target)
 
-      # compute output
-       # print("joint target is ",joint_target)
+        # compute output
+        # print("joint target is ",joint_target)
         pos_feature = jnet(data1)
         loss_joint = criterion(pos_feature, joint_target)
-       # print("loss_joint is ",loss_joint)
-       	# joints constraits
-        F4 = [pos_feature[:,3],pos_feature[:,7],pos_feature[:,12], pos_feature[:,16]]
-        F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14],
-                pos_feature[:,2], pos_feature[:,6], pos_feature[:,10], pos_feature[:,15],
-                pos_feature[:,0], pos_feature[:,4], pos_feature[:,11], pos_feature[:,13],
-                pos_feature[:,17]]
-        loss_cons = 0
-
-        for pos in F1_3:
-            for f in pos:
-                loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
-        for pos in F4:
-            for f in pos:
-                loss_cons =  loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
-        for f in pos_feature[:,8]:
-            loss_cons =  loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
-        for f in pos_feature[:, 18]:
-            loss_cons =  loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
-        for f in pos_feature[:, 19]:
-            loss_cons =  loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
-        for f in pos_feature[:, 20]:
-            loss_cons =  loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
-        for f in pos_feature[:, 21]:
-            loss_cons =  loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
-       # print("loss_cons is", loss_cons)
+        # print("loss_joint is ",loss_joint)
+        loss_cons = joint_constraits(pos_feature)
+        # print("loss_cons is", loss_cons)
         loss = loss_joint + 0.1 * loss_cons
-       # print("loss is ",loss)
+        # print("loss is ",loss)
 
         acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         ll = loss.data
@@ -341,6 +295,33 @@ def test(test_loader, jnet, criterion, epoch):
     plotter.plot('loss', 'test', epoch, losses.avg)
 
     return accs3.avg
+
+
+def joint_constraits(pos_feature):
+    F4 = [pos_feature[:, 3], pos_feature[:, 7], pos_feature[:, 12], pos_feature[:, 16]]
+    F1_3 = [pos_feature[:, 1], pos_feature[:, 5], pos_feature[:, 9], pos_feature[:, 14],
+            pos_feature[:, 2], pos_feature[:, 6], pos_feature[:, 10], pos_feature[:, 15],
+            pos_feature[:, 0], pos_feature[:, 4], pos_feature[:, 11], pos_feature[:, 13],
+            pos_feature[:, 17]]
+    loss_cons = 0
+
+    for pos in F1_3:
+        for f in pos:
+            loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
+    for pos in F4:
+        for f in pos:
+            loss_cons = loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
+    for f in pos_feature[:, 8]:
+        loss_cons = loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
+    for f in pos_feature[:, 18]:
+        loss_cons = loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
+    for f in pos_feature[:, 19]:
+        loss_cons = loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
+    for f in pos_feature[:, 20]:
+        loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
+    for f in pos_feature[:, 21]:
+        loss_cons = loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
+    return loss_cons
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):

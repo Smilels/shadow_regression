@@ -216,14 +216,14 @@ class CPM_fus4(nn.Module):
         self.out_c = out_c
         self.map_feature = CPM(self.out_c)
         self.feature_stage= nn.Sequential(
-            nn.Linear(self.out_c * 45 * 45, 128),
+            nn.Linear(4 * self.out_c * 45 * 45, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 22)
         )
 
-    def forward(self, image):
+    def forward(self, img):
         conv7_stage1_map_feature, Mconv5_stage2_map_feature, Mconv5_stage3_map_feature,\
         Mconv5_stage4_map_feature, _, _ =self.map_feature(img)
         feature_map = torch.cat(
