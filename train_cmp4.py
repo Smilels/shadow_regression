@@ -47,13 +47,13 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=12, metavar='N',
+parser.add_argument('--batch-size', type=int, default=16, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=512, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -67,7 +67,7 @@ parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
 parser.add_argument('--resume', default='resume', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Shadow_imitation_cmp', type=str,
+parser.add_argument('--name', default='Shadow_imitation_cmp4', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
@@ -80,10 +80,9 @@ def main():
     global args, best_acc
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
-    torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-       # torch.cuda.set_device(3)
+        torch.cuda.set_device(1)
     global plotter
     plotter = VisdomLinePlotter(env_name=args.name)
 
@@ -117,7 +116,7 @@ def main():
     if args.cuda:
         jnet.cuda()
         if torch.cuda.device_count() > 1 and args.parallel:
-           jnet = nn.DataParallel(jnet,device_ids=[0,1,2])
+           jnet = nn.DataParallel(jnet,device_ids=[1,2])
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
 
@@ -206,12 +205,12 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
 
         if batch_idx % args.log_interval == 0:
             print('Train Simple Epoch: {} [{}/{}]\t'
-                  'Loss: {:.4f} ({:.4f}) \t'
+                  'Loss: {:.4f} ({:.4f}) ({:.4f})\t'
                   'Acc1: {:.2f}% ({:.2f}%) \t'
                   'Acc2: {:.2f}% ({:.2f}%) \t'
                   'Acc3: {:.2f}% ({:.2f}%) '.format(
                     epoch, batch_idx * len(data1), len(train_loader.dataset),
-                    losses.val, losses.avg, 100. * accs1.val, 100. * accs1.avg,
+                    losses.val, losses.avg, loss_cons, 100. * accs1.val, 100. * accs1.avg,
                     100. * accs2.val, 100. * accs2.avg,
                     100. * accs3.val, 100. * accs3.avg))
 
@@ -257,12 +256,12 @@ def test(test_loader, jnet, criterion, epoch):
 
         if batch_idx % args.log_interval == 0:
             print('Test Simple Epoch: {} [{}/{}]\t'
-                  'Loss: {:.4f} ({:.4f}) \t'
+                  'Loss: {:.4f} ({:.4f}) ({:.4f})\t'
                   'Acc1: {:.2f}% ({:.2f}%) \t'
                   'Acc2: {:.2f}% ({:.2f}%) \t'
                   'Acc3: {:.2f}% ({:.2f}%)'.format(
                     epoch, batch_idx * len(data1), len(test_loader.dataset),
-                    losses.val, losses.avg,
+                    losses.val, losses.avg, loss_cons,
                     100. * accs1.val, 100. * accs1.avg, 100. * accs2.val,
                     100. * accs2.avg, 100. * accs3.val, 100. * accs3.avg))
 

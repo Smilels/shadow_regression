@@ -53,7 +53,7 @@ parser.add_argument('--test-batch-size', type=int, default=128, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.0000001, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -71,7 +71,7 @@ parser.add_argument('--name', default='Shadow_imitation_cmp_fus', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
-parser.add_argument('--parallel', action='store_true', default=False,
+parser.add_argument('--parallel', action='store_true', default=True,
                     help='data parallel')
 best_acc = 0
 
