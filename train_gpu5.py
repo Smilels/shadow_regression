@@ -46,19 +46,19 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=256, metavar='N',
+parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=256, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.0005, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
 parser.add_argument('--cuda', action='store_true', default=True,
                     help='enables CUDA training')
-parser.add_argument('--seed', type=int, default=1, metavar='S',
+parser.add_argument('--seed', type=int, default=2, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=20, metavar='N',
                     help='how many batches to wait before logging training status')
@@ -66,12 +66,14 @@ parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
 parser.add_argument('--resume', default='resume', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Shadow_imitation_gpu4_0.0005', type=str,
+parser.add_argument('--name', default='Shadow_imitation_gpu5', type=str,
                     help='name of experiment')
-parser.add_argument('--net', default='SIMPLE_0.0005', type=str,
+parser.add_argument('--net', default='SIMPLE5', type=str,
                     help='name of Trainning net')
-parser.add_argument('--parallel', action='store_true',default=True,
-                    help='enables dataparallel')
+parser.add_argument('--parallel', action='store_true',default=False,
+                    help='enables Dataparallel')
+parser.add_argument('--decay_rate', type =float, default=0.5,metavar='DR',
+                    help='adaptive decay lr (default:0.5)')
 best_acc = 0
 
 
@@ -82,7 +84,7 @@ def main():
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-        #torch.cuda.set_device(3)
+        torch.cuda.set_device(0)
     global plotter
     plotter = VisdomLinePlotter(env_name=args.name)
 
@@ -123,6 +125,9 @@ def main():
     # find the best algorithm to use for your hardware.
     cudnn.benchmark = True
 
+    criterion = torch.nn.MSELoss()
+    optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
+
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
@@ -136,11 +141,6 @@ def main():
                   .format(args.resume, checkpoint['epoch']))
         else:
             print("==> no checkpoint found at '{}'".format(args.resume))
-
-    criterion = torch.nn.MSELoss()
-    optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
-    #if isinstance(jnet, nn.DataParallel):
-     #   optimizer = nn.DataParallel(optimizer,device_ids=[0,1])
 
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
@@ -212,7 +212,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         # print(data1.size(0))
         if batch_idx % args.log_interval == 0:
             print('Train Simple Epoch: {} [{}/{}]\t'
-                  'Loss: {:.4f} ({:.4f}) {:.4f}\t'
+                  'Loss: {:.4f} ({:.4f}) ({:.4f})\t'
                   'Acc1: {:.2f}% ({:.2f}%) \t'
                   'Acc2: {:.2f}% ({:.2f}%) \t'
                   'Acc3: {:.2f}% ({:.2f}%) '.format(
@@ -262,12 +262,12 @@ def test(test_loader, jnet, criterion, epoch):
 
         if batch_idx % args.log_interval == 0:
             print('Test Simple Epoch: {} [{}/{}]\t'
-                  'Loss: {:.4f} ({:.4f}) \t'
+                  'Loss: {:.4f} ({:.4f}) ({:.4f}) \t'
                   'Acc1: {:.2f}% ({:.2f}%) \t'
                   'Acc2: {:.2f}% ({:.2f}%) \t'
                   'Acc3: {:.2f}% ({:.2f}%)'.format(
                     epoch, batch_idx * len(data1), len(test_loader.dataset),
-                    losses.val, losses.avg,
+                    losses.val, losses.avg, loss_cons,
                     100. * accs1.val, 100. * accs1.avg, 100. * accs2.val,
                     100. * accs2.avg, 100. * accs3.val, 100. * accs3.avg))
 
@@ -362,8 +362,8 @@ class AverageMeter(object):
 
 
 def adjust_learning_rate(jnet, optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
-    lr = args.lr * (0.5 ** (epoch // 50))
+    """Sets the learning rate to the initial LR decayed by decay_rate every 50 epochs"""
+    lr = args.lr * (args.decay_rate ** (epoch // 50))
     print("current learning rate is ", lr)
     #if isinstance(jnet, nn.DataParallel):
     #   for param_group in optimizer.module.param_groups:
