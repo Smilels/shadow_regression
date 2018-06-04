@@ -46,7 +46,7 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=120, metavar='N',
+parser.add_argument('--batch-size', type=int, default=256, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                     help='input batch size for testing (default: 256)')
@@ -66,11 +66,11 @@ parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
 parser.add_argument('--resume', default='resume', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Shadow_imitation_gpu4', type=str,
+parser.add_argument('--name', default='Shadow_imitation_gpu4_0.0005', type=str,
                     help='name of experiment')
-parser.add_argument('--net', default='SIMPLE', type=str,
+parser.add_argument('--net', default='SIMPLE_0.0005', type=str,
                     help='name of Trainning net')
-parser.add_argument('--parallel', action='store_true',default=False,
+parser.add_argument('--parallel', action='store_true',default=True,
                     help='enables dataparallel')
 best_acc = 0
 
@@ -82,7 +82,7 @@ def main():
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-        torch.cuda.set_device(3)
+        #torch.cuda.set_device(3)
     global plotter
     plotter = VisdomLinePlotter(env_name=args.name)
 
@@ -117,7 +117,7 @@ def main():
     if args.cuda:
         jnet.cuda()
         if torch.cuda.device_count() > 1 and args.parallel:
-           jnet = nn.DataParallel(jnet)  # dataParallel
+           jnet = nn.DataParallel(jnet,device_ids=[0,1])  # dataParallel
 
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
@@ -132,13 +132,15 @@ def main():
             best_prec1 = checkpoint['best_prec1']
             jnet.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
-	    print("==> loaded checkpoint '{}' (epoch {})"
+            print("==> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
         else:
             print("==> no checkpoint found at '{}'".format(args.resume))
 
     criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
+    #if isinstance(jnet, nn.DataParallel):
+     #   optimizer = nn.DataParallel(optimizer,device_ids=[0,1])
 
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
@@ -150,17 +152,11 @@ def main():
         # remember best acc and save checkpoint
         is_best = acc > best_acc
         best_acc = max(acc, best_acc)
-        if isinstance(jnet, nn.DataParallel):
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict': jnet.module.state_dict(),
-                'best_prec1': best_acc,
-            }, is_best)
-        else:
-            save_checkpoint({
+        save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': jnet.state_dict(),
                 'best_prec1': best_acc,
+		'optimizer' : optimizer.state_dict(),
             }, is_best)
 
         # state_dict() Returns a dictionary containing a whole state of the module.
@@ -196,15 +192,15 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         loss_cons = joint_constraits(pos_feature)
         # print("loss_cons is", loss_cons)
         loss = 10 * loss_joint + loss_cons
-        # print("loss is ",loss)
+        # print("loss is ",)
         optimizer.zero_grad()
         loss.backward()
         # g = make_dot(loss)
         # g.view()
-        if isinstance(jnet, nn.DataParallel):
-           optimizer.module.step()
-        else:
-           optimizer.step()
+       # if isinstance(jnet, nn.DataParallel):
+        #   optimizer.module.step()
+       # else:
+        optimizer.step()
 
         acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
@@ -377,11 +373,11 @@ def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
     lr = args.lr * (0.5 ** (epoch // 50))
     print("current learning rate is ", lr)
-    if isinstance(jnet, nn.DataParallel):
-       for param_group in optimizer.module.param_groups:
-          param_group['lr'] = lr
-    else:
-       for param_group in optimizer.param_groups:
+    #if isinstance(jnet, nn.DataParallel):
+    #   for param_group in optimizer.module.param_groups:
+     #     param_group['lr'] = lr
+   # else:
+    for param_group in optimizer.param_groups:
           # for param_group in optimizer.module.param_groups:
           param_group['lr'] = lr
 
@@ -400,57 +396,6 @@ def accuracy(output, target, accuracy_thre):
                 correct += 1
         acc.append(correct/total)
     return acc
-
-
-def make_dot(var, params=None):
-    """ Produces Graphviz representation of PyTorch autograd graph
-    Blue nodes are the Variables that require grad, orange are Tensors
-    saved for backward in torch.autograd.Function
-    Args:
-        var: output Variable
-        params: dict of (name, Variable) to add names to node that
-            require grad (TODO: make optional)
-    """
-    if params is not None:
-        assert isinstance(params.values()[0], Variable)
-        param_map = {id(v): k for k, v in params.items()}
-
-    node_attr = dict(style='filled',
-                     shape='box',
-                     align='left',
-                     fontsize='12',
-                     ranksep='0.1',
-                     height='0.2')
-    dot = Digraph(node_attr=node_attr, graph_attr=dict(size="12,12"))
-    seen = set()
-
-    def size_to_str(size):
-        return '(' + (', ').join(['%d' % v for v in size]) + ')'
-
-    def add_nodes(var):
-        if var not in seen:
-            if torch.is_tensor(var):
-                dot.node(str(id(var)), size_to_str(var.size()), fillcolor='orange')
-            elif hasattr(var, 'variable'):
-                u = var.variable
-                name = param_map[id(u)] if params is not None else ''
-                node_name = '%s\n %s' % (name, size_to_str(u.size()))
-                dot.node(str(id(var)), node_name, fillcolor='lightblue')
-            else:
-                dot.node(str(id(var)), str(type(var).__name__))
-            seen.add(var)
-            if hasattr(var, 'next_functions'):
-                for u in var.next_functions:
-                    if u[0] is not None:
-                        dot.edge(str(id(u[0])), str(id(var)))
-                        add_nodes(u[0])
-            if hasattr(var, 'saved_tensors'):
-                for t in var.saved_tensors:
-                    dot.edge(str(id(t)), str(id(var)))
-                    add_nodes(t)
-
-    add_nodes(var.grad_fn)
-    return dot
 
 
 if __name__ == '__main__':
