@@ -132,13 +132,15 @@ def main():
             best_prec1 = checkpoint['best_prec1']
             jnet.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
-	    print("==> loaded checkpoint '{}' (epoch {})"
+            print("==> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
         else:
             print("==> no checkpoint found at '{}'".format(args.resume))
 
     criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
+    # if isinstance(jnet, nn.DataParallel):
+    #   optimizer = nn.DataParallel(optimizer,device_ids=[0,1])
 
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
@@ -150,18 +152,12 @@ def main():
         # remember best acc and save checkpoint
         is_best = acc > best_acc
         best_acc = max(acc, best_acc)
-        if isinstance(jnet, nn.DataParallel):
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict': jnet.module.state_dict(),
-                'best_prec1': best_acc,
-            }, is_best)
-        else:
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict': jnet.state_dict(),
-                'best_prec1': best_acc,
-            }, is_best)
+        save_checkpoint({
+            'epoch': epoch + 1,
+            'state_dict': jnet.state_dict(),
+            'best_prec1': best_acc,
+            'optimizer': optimizer.state_dict(),
+        }, is_best)
 
         # state_dict() Returns a dictionary containing a whole state of the module.
         # Both parameters and persistent buffers (e.g. running averages) are included.
@@ -201,10 +197,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         loss.backward()
         # g = make_dot(loss)
         # g.view()
-        if isinstance(jnet, nn.DataParallel):
-           optimizer.module.step()
-        else:
-           optimizer.step()
+        optimizer.step()
 
         acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
@@ -377,14 +370,8 @@ def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
     lr = args.lr * (0.5 ** (epoch // 50))
     print("current learning rate is ", lr)
-    if isinstance(jnet, nn.DataParallel):
-       for param_group in optimizer.module.param_groups:
-          param_group['lr'] = lr
-    else:
-       for param_group in optimizer.param_groups:
-          # for param_group in optimizer.module.param_groups:
-          param_group['lr'] = lr
-
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
 
 
 def accuracy(output, target, accuracy_thre):

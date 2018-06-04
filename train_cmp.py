@@ -118,9 +118,13 @@ def main():
         jnet.cuda()
         if torch.cuda.device_count() > 1 and args.parallel:
            jnet = nn.DataParallel(jnet,device_ids=[0,1,2])
+
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
     cudnn.benchmark = True
+
+    criterion = torch.nn.MSELoss()
+    optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -129,28 +133,16 @@ def main():
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
             best_prec1 = checkpoint['best_prec1']
-            if isinstance(jnet, nn.DataParallel):
-                from collections import OrderedDict
-                new_state_dict = OrderedDict()
-                for k, v in checkpoint['state_dict'].items():
-                    namekey = k[7:]  # remove `module.  TODO： check the meaning of 7 in here
-                    new_state_dict[namekey] = v
-                jnet.load_state_dict(new_state_dict)
-            else:
-                jnet.load_state_dict(checkpoint['state_dict'])
+            jnet.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
             print("==> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
         else:
             print("==> no checkpoint found at '{}'".format(args.resume))
 
-    criterion = torch.nn.MSELoss()
-    optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
-    if isinstance(jnet, nn.DataParallel):
-        optimizer = nn.DataParallel(optimizer,device_ids=[0,1,2])
-
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
-        adjust_learning_rate(jnet,optimizer, epoch)
+        adjust_learning_rate(jnet, optimizer, epoch)
         train(train_loader, jnet, criterion, optimizer, epoch)
         # evaluate on validation set
         acc = test(test_loader, jnet, criterion, epoch)
@@ -158,18 +150,12 @@ def main():
         # remember best acc and save checkpoint
         is_best = acc > best_acc
         best_acc = max(acc, best_acc)
-        if isinstance(jnet, nn.DataParallel):
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict': jnet.module.state_dict(),
-                'best_prec1': best_acc,
-            }, is_best)
-        else:
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict': jnet.state_dict(),
-                'best_prec1': best_acc,
-            }, is_best)
+        save_checkpoint({
+            'epoch': epoch + 1,
+            'state_dict': jnet.state_dict(),
+            'best_prec1': best_acc,
+            'optimizer': optimizer.state_dict(),
+        }, is_best)
 
 
 def train(train_loader, jnet, criterion, optimizer, epoch):
@@ -203,10 +189,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
 
         optimizer.zero_grad()
         loss.backward()
-        if isinstance(jnet, nn.DataParallel):
-            optimizer.module.step()
-        else:
-             optimizer.step()
+        optimizer.step()
         #params=model.state_dict()
         #if isinstance(jnet, nn.DataParallel):
          #   params = jnet.module.state_dict(),
@@ -381,14 +364,11 @@ class AverageMeter(object):
 def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
     lr = args.lr * (0.5 ** (epoch // 50))
-    if isinstance(jnet, nn.DataParallel):
-       for param_group in optimizer.module.param_groups:
-           param_group['lr'] = lr
-    else:
-       for param_group in optimizer.param_groups:
-           param_group['lr'] = lr
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
 
- accuracy(output, target, accuracy_thre):
+
+def accuracy(output, target, accuracy_thre):
     """Computes the precision@k for the specified values of k"""
     acc=[]
     total = target.size(0)

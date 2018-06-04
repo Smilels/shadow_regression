@@ -165,10 +165,6 @@ def main():
 
 
 def train(train_loader, jnet, criterion, optimizer, epoch):
-    correct1 = 0.0
-    correct2 = 0.0
-    correct3 = 0.0
-    total = 0
     losses = AverageMeter()
     accs1 = AverageMeter()
     accs2 = AverageMeter()
@@ -233,10 +229,6 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
 
 
 def test(test_loader, jnet, criterion, epoch):
-    correct1 = 0.0
-    correct2 = 0.0
-    correct3 = 0.0
-    total = 0
     losses = AverageMeter()
     accs1 = AverageMeter()
     accs2 = AverageMeter()
