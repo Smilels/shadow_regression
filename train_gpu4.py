@@ -70,6 +70,8 @@ parser.add_argument('--name', default='Shadow_imitation_gpu4', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
+parser.add_argument('--parallel', action='store_true',default=True,
+                    help='enables dataparallel')
 best_acc = 0
 
 
@@ -112,6 +114,14 @@ def main():
         batch_size=args.batch_size, drop_last=False, **kwargs)
 
     jnet = SimpleRegression()
+    if args.cuda:
+        jnet.cuda()
+        if torch.cuda.device_count() > 1 and args.parallel:
+           jnet = nn.DataParallel(jnet)  # dataParallel
+
+    # This flag allows you to enable the inbuilt cudnn auto-tuner to
+    # find the best algorithm to use for your hardware.
+    cudnn.benchmark = True
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -133,15 +143,6 @@ def main():
                   .format(args.resume, checkpoint['epoch']))
         else:
             print("==> no checkpoint found at '{}'".format(args.resume))
-
-    if args.cuda:
-        jnet.cuda()
-        #if torch.cuda.device_count() > 1:
-         #   jnet = nn.DataParallel(jnet)  # dataParallel
-
-    # This flag allows you to enable the inbuilt cudnn auto-tuner to
-    # find the best algorithm to use for your hardware.
-    cudnn.benchmark = True
 
     criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
@@ -196,11 +197,11 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-       # print("joint target is ",joint_target)
+        # print("joint target is ",joint_target)
         pos_feature = jnet(data1)
         loss_joint = criterion(pos_feature, joint_target)
-       # print("loss_joint is ",loss_joint)
-       # print("pos_feature is ", pos_feature)
+        # print("loss_joint is ",loss_joint)
+        # print("pos_feature is ", pos_feature)
 	# joints constraits
         F4 = [pos_feature[:,3],pos_feature[:,7],pos_feature[:,12], pos_feature[:,16]]
         F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14],

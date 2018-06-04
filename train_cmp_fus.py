@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model_cmp_fus import CPM
+from model_cmp import CPM_fus4
 from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
@@ -53,7 +53,7 @@ parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.00001, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.0000001, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -71,6 +71,8 @@ parser.add_argument('--name', default='Shadow_imitation_cmp', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
+parser.add_argument('--parallel', action='store_true', default=True,
+                    help='data parallel')
 best_acc = 0
 
 
@@ -111,7 +113,14 @@ def main():
                             ])),
         batch_size=args.batch_size, drop_last=False, **kwargs)
 
-    jnet = CPM(22)
+    jnet = CPM_fus4(22)
+    if args.cuda:
+        jnet.cuda()
+        if torch.cuda.device_count() > 1 and args.parallel:
+           jnet = nn.DataParallel(jnet,device_ids=[0,1,2])
+    # This flag allows you to enable the inbuilt cudnn auto-tuner to
+    # find the best algorithm to use for your hardware.
+    cudnn.benchmark = True
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -134,22 +143,14 @@ def main():
         else:
             print("==> no checkpoint found at '{}'".format(args.resume))
 
-    if args.cuda:
-        jnet.cuda()
-        if torch.cuda.device_count() > 1:
-           jnet = nn.DataParallel(jnet,device_ids=[0,1,2])  # 使用dataParallel重新包装一下
-
-    # This flag allows you to enable the inbuilt cudnn auto-tuner to
-    # find the best algorithm to use for your hardware.
-    cudnn.benchmark = True
-
     criterion = torch.nn.MSELoss()
     optimizer = optim.SGD(jnet.parameters(), lr=args.lr, momentum=args.momentum)
-    if args.cuda and torch.cuda.device_count() > 1:
+    if isinstance(jnet, nn.DataParallel):
         optimizer = nn.DataParallel(optimizer,device_ids=[0,1,2])
 
     for epoch in range(1, args.epochs + 1):
         # train for one epoch
+        adjust_learning_rate(jnet, optimizer, epoch)
         train(train_loader, jnet, criterion, optimizer, epoch)
         # evaluate on validation set
         acc = test(test_loader, jnet, criterion, epoch)
@@ -187,10 +188,34 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature = jnet(data1)
-        loss = criterion(feature, joint_target)
+        pos_feature = jnet(data1)
+        loss_joint = criterion(pos_feature, joint_target)
+	# joints constraits
+	F4 = [pos_feature[:,3],pos_feature[:,7],pos_feature[:,12], pos_feature[:,16]]
+	F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14],
+	 pos_feature[:,2], pos_feature[:,6], pos_feature[:,10], pos_feature[:,15],
+	 pos_feature[:,0], pos_feature[:,4], pos_feature[:,11], pos_feature[:,13],
+         pos_feature[:,17]]
+									            loss_cons =  0
+	for pos in F1_3:
+	    for f in pos:
+	        loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
+	for pos in F4:
+	    for f in pos:
+	        loss_cons =  loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
+	for f in pos_feature[:,8]:
+	    loss_cons =  loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
+	for f in pos_feature[:, 18]:
+	    loss_cons =  loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
+	for f in pos_feature[:, 19]:
+	    loss_cons =  loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
+	for f in pos_feature[:, 20]:
+	    loss_cons =  loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
+	for f in pos_feature[:, 21]:
+	    loss_cons =  loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
+	#print("loss_cons is", loss_cons)
+	loss = 10 * loss_joint + loss_cons
 
-        # adjust_learning_rate(optimizer, epoch)
         optimizer.zero_grad()
         loss.backward()
         if isinstance(jnet, nn.DataParallel):
@@ -248,11 +273,36 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature = jnet(data1)
+        pos_feature = jnet(data1)
 
-        loss = criterion(feature, joint_target) 
+        loss_joint = criterion(pos_feature, joint_target)
+	# joints constraits
+	F4 = [pos_feature[:,3],pos_feature[:,7],pos_feature[:,12], pos_feature[:,16]]
+	F1_3 = [pos_feature[:,1],pos_feature[:,5],pos_feature[:,9], pos_feature[:,14],
+	 pos_feature[:,2], pos_feature[:,6], pos_feature[:,10], pos_feature[:,15],
+	 pos_feature[:,0], pos_feature[:,4], pos_feature[:,11], pos_feature[:,13],
+         pos_feature[:,17]]
+									            loss_cons =  0
+	for pos in F1_3:
+	    for f in pos:
+	        loss_cons = loss_cons + max(0 - f, 0) + max(f - 1.57, 0)
+	for pos in F4:
+	    for f in pos:
+	        loss_cons =  loss_cons + max(-0.349 - f, 0) + max(f - 0.349, 0)
+	for f in pos_feature[:,8]:
+	    loss_cons =  loss_cons + max(0 - f, 0) + max(f - 0.785, 0)
+	for f in pos_feature[:, 18]:
+	    loss_cons =  loss_cons + max(-0.524 - f, 0) + max(f - 0.524, 0)
+	for f in pos_feature[:, 19]:
+	    loss_cons =  loss_cons + max(-0.209 - f, 0) + max(f - 0.209, 0)
+	for f in pos_feature[:, 20]:
+	    loss_cons =  loss_cons + max(0 - f, 0) + max(f - 1.222, 0)
+	for f in pos_feature[:, 21]:
+	    loss_cons =  loss_cons + max(-1.047 - f, 0) + max(f - 1.047, 0)
+	#print("loss_cons is", loss_cons)
+	loss = 10 * loss_joint + loss_cons
 
-        acc = accuracy(feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+	acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         ll = loss.data
         losses.update(ll, data1.size(0))
         accs1.update(acc[0], data1.size(0))
@@ -336,9 +386,12 @@ class AverageMeter(object):
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
     lr = args.lr * (0.5 ** (epoch // 50))
-    for param_group in optimizer.param_groups:
-        # for param_group in optimizer.module.param_groups:
-        param_group['lr'] = lr
+    if isinstance(jnet, nn.DataParallel):
+       for param_group in optimizer.module.param_groups:
+           param_group['lr'] = lr
+    else:
+       for param_group in optimizer.param_groups:
+           param_group['lr'] = lr
 
 
 def accuracy(output, target, accuracy_thre):
