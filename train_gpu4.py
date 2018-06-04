@@ -70,7 +70,7 @@ parser.add_argument('--name', default='Shadow_imitation_gpu4', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='SIMPLE', type=str,
                     help='name of Trainning net')
-parser.add_argument('--parallel', action='store_true',default=True,
+parser.add_argument('--parallel', action='store_true',default=False,
                     help='enables dataparallel')
 best_acc = 0
 
@@ -203,13 +203,13 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         # print("loss_joint is ",loss_joint)
         # print("pos_feature is ", pos_feature)
         loss_cons = joint_constraits(pos_feature)
-        #print("loss_cons is", loss_cons)
+        # print("loss_cons is", loss_cons)
         loss = 10 * loss_joint + loss_cons
-       # print("loss is ",loss)
+        # print("loss is ",loss)
         optimizer.zero_grad()
         loss.backward()
-        #g = make_dot(loss)
-        #g.view()
+        # g = make_dot(loss)
+        # g.view()
         if isinstance(jnet, nn.DataParallel):
            optimizer.module.step()
         else:
@@ -381,7 +381,7 @@ class AverageMeter(object):
 def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
     lr = args.lr * (0.5 ** (epoch // 50))
-    print("current laerning rate is ", lr)
+    print("current learning rate is ", lr)
     if isinstance(jnet, nn.DataParallel):
        for param_group in optimizer.module.param_groups:
           param_group['lr'] = lr
