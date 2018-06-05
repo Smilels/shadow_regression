@@ -237,7 +237,8 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, feature2, feature3, feature4 = jnet(data1)
+        feature1, feature2, feature3, feature4, map_feature1, \
+        map_feature2, map_feature3, map_feature4 = jnet(data1)
 
         loss1 = criterion(feature1, joint_target)
         loss2 = criterion(feature2, joint_target)
