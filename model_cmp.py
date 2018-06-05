@@ -280,6 +280,34 @@ class CPM4(nn.Module):
                Mconv5_stage4_map_feature
 
 
+class CPM2(nn.Module):
+    def __init__(self, out_c):
+        super(CPM4, self).__init__()
+        self.out_c = out_c
+        self.map_feature = CPM(self.out_c)
+        self.feature_stage1 = nn.Sequential(
+            nn.Linear(self.out_c * 45 * 45, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 22)
+        )
+        self.feature_stage2 = nn.Sequential(
+            nn.Linear(self.out_c * 45 * 45, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 22)
+        )
+
+    def forward(self, img):
+        conv7_stage1_map_feature, Mconv5_stage2_map_feature, _, _, _, _ = self.map_feature(img)
+        joints_stage1 = self.feature_stage1(conv7_stage1_map_feature)
+        joints_stage2 = self.feature_stage2(conv7_stage1_map_feature)
+        return joints_stage1, joints_stage2, \
+               conv7_stage1_map_feature, Mconv5_stage2_map_feature
+
+
 class CPM6(nn.Module):
     def __init__(self, out_c):
         super(CPM6, self).__init__()
