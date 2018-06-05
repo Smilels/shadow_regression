@@ -47,9 +47,9 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=12, metavar='N',
+parser.add_argument('--batch-size', type=int, default=16, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=516, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
@@ -390,7 +390,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
-    lr = args.lr * (0.5 ** (epoch // 50))
+    lr = args.lr * (0.5 ** (epoch // 30))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 

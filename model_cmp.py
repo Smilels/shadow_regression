@@ -282,7 +282,7 @@ class CPM4(nn.Module):
 
 class CPM2(nn.Module):
     def __init__(self, out_c):
-        super(CPM4, self).__init__()
+        super(CPM2, self).__init__()
         self.out_c = out_c
         self.map_feature = CPM(self.out_c)
         self.feature_stage1 = nn.Sequential(
