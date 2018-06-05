@@ -275,7 +275,9 @@ class CPM4(nn.Module):
         joints_stage2 = self.feature_stage2(conv7_stage1_map_feature)
         joints_stage3 = self.feature_stage3(conv7_stage1_map_feature)
         joints_stage4 = self.feature_stage4(conv7_stage1_map_feature)
-        return joints_stage1, joints_stage2, joints_stage3, joints_stage4
+        return joints_stage1, joints_stage2, joints_stage3, joints_stage4, \
+               conv7_stage1_map_feature, Mconv5_stage2_map_feature, Mconv5_stage3_map_feature,\
+               Mconv5_stage4_map_feature
 
 
 class CPM6(nn.Module):

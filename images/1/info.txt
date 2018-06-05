@@ -1,0 +1,4 @@
+batch_size:64
+workers:60
+lr:0.01 
+
