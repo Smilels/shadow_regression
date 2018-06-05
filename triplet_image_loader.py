@@ -36,75 +36,6 @@ class Lighting(object):
 
         return img.add(rgb.view(3, 1, 1).expand_as(img))
 
-def default_image_loader(path):
-    return Image.open(path).convert('RGB')
-
-class TripletImageLoader(torch.utils.data.Dataset):
-
-    def __init__(self, base_path, train_label_file, triplets_file_name, train=True, transform=None,
-                 loader=default_image_loader,n_train_triplets=50000,):
-        """ train_label_file: a csv file with each image and correspongding label
-            triplets_file_name: A text file with each line containing three integers, 
-                where integer i refers to the i-th image in the filenames file. """
-        self.base_path = base_path
-
-        f_label = open(train_label_file)
-        lines = f_label.read().splitlines()
-
-        self.filenamelist = [ln.split(' ')[0] for ln in lines]  # return all the data file name as a list
-        label = [int(ln.split(' ')[1]) for ln in lines]  # return all the data file label as a list
-        label = np.array(label)
-
-        self.triplets_file_name =triplets_file_name;
-
-        self.make_triplet_list(n_train_triplets,label)
-
-        self.transform = transform
-        self.loader = loader
-
-    def __getitem__(self, index):
-        path1, path2, path3 = self.triplets[index]
-        img1 = self.loader(os.path.join(self.base_path,self.filenamelist[int(path1)]))
-        img2 = self.loader(os.path.join(self.base_path,self.filenamelist[int(path2)]))
-        img3 = self.loader(os.path.join(self.base_path,self.filenamelist[int(path3)]))
-        if self.transform is not None:
-            img1 = self.transform(img1)
-            img2 = self.transform(img2)
-            img3 = self.transform(img3)
-
-        return img1, img2, img3
-
-
-    def __len__(self):
-        return len(self.triplets)
-
-
-    def make_triplet_list(self, ntriplets,label):
-
-        if self._check_triplets_exists():
-            return
-        print('Processing Triplet Generation ...')
-
-        triplets = []
-        for class_idx in range(10):
-            a = np.random.choice(np.where(label==class_idx)[0], int(ntriplets/10), replace=True)
-            # replace is True, means one element only can choose once
-            b = np.random.choice(np.where(label==class_idx)[0], int(ntriplets/10), replace=True)
-            while np.any((a-b)==0):
-                np.random.shuffle(b)
-            c = np.random.choice(np.where(label!=class_idx)[0], int(ntriplets/10), replace=True)
-
-            for i in range(a.shape[0]):
-                triplets.append([int(a[i]), int(c[i]), int(b[i])])
-
-        self.triplets = triplets
-
-        filename = self.triplets_file_name
-        with open(os.path.join(self.root, filename), "wb") as f:
-            writer = csv.writer(f, delimiter=' ')
-            writer.writerows(triplets)
-        print('Done!')
-
 
 class SimpleImageLoader(torch.utils.data.Dataset):
     def __init__(self, base_path, train=True, transform=None):
@@ -209,8 +140,17 @@ if __name__ == '__main__':
     for step, (data,_) in enumerate(train_loader):
         data = Variable(data)
         print(step)
-        # print(data[1])
+        data = data.numpy()
         # v1 = mean1 + data.float().mean()
         # std1 = std1 + data.float().std()
-        print(data.float().mean())
-        print(data.float().std())
+        #print(data.float().mean())
+        #print(data.float().std())
+        means = []
+        stdevs = []
+        for i in range(3):
+            pixels = data[:,i,:,:].ravel()
+            means.append(np.mean(pixels))
+            stdevs.append(np.std(pixels))
+        print("means: {}".format(means))
+        print("stdevs: {}".format(stdevs))
+        print('transforms.Normalize(mean = {}, std = {})'.format(means, stdevs))

@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model_new import SimpleRegression
+from model_resnet import SimpleRegression
 from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np

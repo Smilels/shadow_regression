@@ -65,7 +65,7 @@ parser.add_argument('--log-interval', type=int, default=20, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
-parser.add_argument('--resume', default='resume', type=str,
+parser.add_argument('--resume', default='./checkoutpoint/Shadow_imitation_cmp4/checkpoint.pth.tar', type=str,
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--name', default='Shadow_imitation_cmp4', type=str,
                     help='name of experiment')
