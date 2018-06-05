@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model_cmp import CPM4
+from model_cmp import CPM2
 from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
@@ -53,7 +53,7 @@ parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.005, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -116,7 +116,7 @@ def main():
                             ])),
         batch_size=args.batch_size, drop_last=False, **kwargs)
 
-    jnet = CPM4(22)
+    jnet = CPM2(22)
     if args.cuda:
         jnet.cuda()
         if torch.cuda.device_count() > 1 and args.parallel:
@@ -177,23 +177,20 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, feature2, feature3, feature4, map_feature1, \
-        map_feature2, map_feature3,map_feature4 = jnet(data1)
+        feature1, feature2, map_feature1, map_feature2 = jnet(data1)
 
         loss1 = criterion(feature1, joint_target)
         loss2 = criterion(feature2, joint_target)
-        loss3 = criterion(feature3, joint_target)
-        loss4 = criterion(feature4, joint_target)
 
-        loss_joint = loss1 + loss2 + loss3 + loss4
-        loss_cons = joint_constraits(feature4)
+        loss_joint = loss1 + loss2
+        loss_cons = joint_constraits(feature2)
         loss = 10 * loss_joint + loss_cons
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        acc = accuracy(feature4, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        acc = accuracy(feature2, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
         ll = loss.data
         losses.update(ll, data1.size(0))
@@ -237,18 +234,15 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, feature2, feature3, feature4, map_feature1, \
-        map_feature2, map_feature3, map_feature4 = jnet(data1)
+        feature1, feature2, map_feature1, map_feature2 = jnet(data1)
 
         loss1 = criterion(feature1, joint_target)
         loss2 = criterion(feature2, joint_target)
-        loss3 = criterion(feature3, joint_target)
-        loss4 = criterion(feature4, joint_target)
-        loss_joint = loss1 + loss2 + loss3 + loss4
-        loss_cons = joint_constraits(feature4)
+        loss_joint = loss1 + loss2
+        loss_cons = joint_constraits(feature2)
         loss = 10 * loss_joint + loss_cons
 
-        acc = accuracy(feature4, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        acc = accuracy(feature2, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         ll = loss.data
         losses.update(ll, data1.size(0))
         accs1.update(acc[0], data1.size(0))
