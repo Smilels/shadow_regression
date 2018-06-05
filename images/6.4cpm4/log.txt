@@ -1,0 +1,5 @@
+batch-size:16
+test_bs:512
+lr:0.001
+decay_lr:0.5 50epoch
+目测：过拟合较严重
