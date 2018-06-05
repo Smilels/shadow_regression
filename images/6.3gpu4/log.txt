@@ -1,0 +1,7 @@
+6.3
+batch size:120
+test batch size:600
+lr:0.001 decay_lr:0.5
+workers 20
+resnet18+fc+loss_cons
+但是test loss出错，没有乘以10
