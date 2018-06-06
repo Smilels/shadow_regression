@@ -29,6 +29,30 @@ class SimpleRegression(nn.Module):
 
         return pos_feature
 
+class SimpleRegression_drop(nn.Module):
+    def __init__(self):
+        super(SimpleRegression_drop, self).__init__()
+        resnet = models.resnet18(pretrained=True)
+        modules = list(resnet.children())[:-1]
+        self.resnet = nn.Sequential(*modules)
+
+        self.pos_output = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+	    nn.dropout(p=0.5),
+            nn.Linear(64, 22),
+        )
+
+    def forward(self, fore_bf):
+        fb_feature = self.resnet(fore_bf) # torch.Size :512*1*1
+        fb_feature = fb_feature.view(-1,512)
+        # print(fb_feature.shape)
+        pos_feature = self.pos_output(fb_feature) # torch.Size([1, 22])
+
+        return pos_feature
+
 
 if __name__ == '__main__':
     data = Variable(torch.ones([1, 3, 224, 224]))
