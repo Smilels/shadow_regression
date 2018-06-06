@@ -2,7 +2,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 from torch.autograd import Variable
-
 #def backward_hook(module, grad_in, grad_out):
     # print(module)
     # print('grad of output:', grad_out)
