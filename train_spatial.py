@@ -55,7 +55,7 @@ parser.add_argument('--test-batch-size', type=int, default=1028, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.003, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -69,11 +69,11 @@ parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
 parser.add_argument('--resume', default='resume', type=str,
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--name', default='Shadow_imitation_gpu5', type=str,
+parser.add_argument('--name', default='Shadow_imitation_gpu6', type=str,
                     help='name of experiment')
-parser.add_argument('--net', default='SIMPLE5', type=str,
+parser.add_argument('--net', default='SIMPLE6', type=str,
                     help='name of Trainning net')
-parser.add_argument('--parallel', action='store_true',default=False,
+parser.add_argument('--parallel', action='store_true',default=True,
                     help='enables Dataparallel')
 parser.add_argument('--decay_rate', type =float, default=0.5,metavar='DR',
                     help='adaptive decay lr (default:0.5)')
@@ -167,11 +167,7 @@ def main():
 		'optimizer' : optimizer.state_dict(),
             }, is_best)
 
-        plotter.weight(epoch, jnet.state_dict())
-
-        # state_dict() Returns a dictionary containing a whole state of the module.
-        # Both parameters and persistent buffers (e.g. running averages) are included.
-        # Keys are corresponding parameter and buffer names.
+       # plotter.weight(epoch, jnet.state_dict())
 
 
 def train(train_loader, jnet, criterion, optimizer, epoch):
@@ -210,7 +206,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         accs2.update(acc[1], data1.size(0))
         accs3.update(acc[2], data1.size(0))
 
-        adjust_learning_rate(jnet, optimizer, epoch, losses.avg, previous_loss)
+        adjust_learning_rate(optimizer, epoch)
         previous_loss = loss.data
 
         if batch_idx % args.log_interval == 0:
@@ -229,8 +225,6 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
     plotter.plot('acc2', 'train', epoch, accs2.avg)
     plotter.plot('acc3', 'train', epoch, accs3.avg)
     plotter.plot('loss', 'train', epoch, losses.avg)
-    if epoch%10==0:
-        plotter.image(map_feature)
 
 
 def test(test_loader, jnet, criterion, epoch):
@@ -249,12 +243,15 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        pos_feature = jnet(data1)
+        # print("joint target is ",joint_target)
+        pos_feature,map_feature = jnet(data1)
         loss_joint = criterion(pos_feature, joint_target)
         loss_cons = joint_constraits(pos_feature)
+        # print("loss_cons is", loss_cons)
         loss = 10 * loss_joint + loss_cons
 
         acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+        # error solution "TypeError: tensor(0.5809) is not JSON serializable"
         ll = loss.data
         losses.update(ll, data1.size(0))
         accs1.update(acc[0], data1.size(0))
@@ -346,13 +343,13 @@ class VisdomLinePlotter(object):
 
     def weight(self,x,state):
         # the following code can get the name of each layer
-        # for k, v in params.items():
+        # for k, v in state.items():
         #     print(k)
 
         # maybe we need to change the layer's name
-        y = state['fc.bias'].view(-1, 1)
+        y = state['module.pos_output.4.weight'].view(-1, 1)
         s = np.array([x, x])
-        for i in range(0, y.shape[0] - 1):
+        for i in range(0, y.shape[0]):
             s = np.column_stack((s, np.array([x, x])))
         w = np.array([y, y])
         if x == 1:
@@ -365,7 +362,7 @@ class VisdomLinePlotter(object):
             X=s,
             Y=w,
             win='weights',
-            update='append'
+           update='append'
         )
 
 
@@ -391,20 +388,21 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch, lr, loss, previous_loss):
+def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by decay_rate every 50 epochs"""
-    if epoch // 30:
-        lr = args.lr * (args.decay_rate ** (epoch // 30))
-        for param_group in optimizer.param_groups:
+#    if epoch // 30:
+    lr = args.lr * (args.decay_rate ** (epoch // 30))
+    for param_group in optimizer.param_groups:
             # for param_group in optimizer.module.param_groups:
-            param_group['lr'] = lr
-    else:
-        if loss > previous_loss:
-            lr = lr * args.decay_rate
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = lr
-
-    print("current learning rate is ", lr)
+        param_group['lr'] = lr
+#    else:
+#        if loss > previous_loss:
+#            print("loss is increasing now, decrease lr")
+#            lr = lr * args.decay_rate
+#            for param_group in optimizer.param_groups:
+#                param_group['lr'] = lr
+#
+    #print("current learning rate is ", lr)
 
 
 def accuracy(output, target, accuracy_thre):
