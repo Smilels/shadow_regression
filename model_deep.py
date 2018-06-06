@@ -3,6 +3,16 @@ import torch.nn.functional as F
 import torch
 from torch.autograd import Variable
 
+#def backward_hook(module, grad_in, grad_out):
+    # print(module)
+    # print('grad of output:', grad_out)
+    # print('grad of input:', grad_in)
+
+#def forward_hook(module, input, output):
+#    print(module)
+#    print('input:', input)
+#    print('output:', output)
+
 class Priornet(nn.Module):
     def __init__(self):
         super(Priornet, self).__init__()
@@ -11,6 +21,8 @@ class Priornet(nn.Module):
         self.conv1 = nn.Conv2d(3, 8, kernel_size=5)
         torch.nn.init.xavier_uniform_(self.conv1.weight)
         torch.nn.init.constant_(self.conv1.bias,0.1)
+        # self.conv1.register_forward_hook(forward_hook)
+	# self.conv1.register_backward_hook(backward_hook)
         self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=4, stride=4)
         self.conv2 = nn.Conv2d(8, 8, kernel_size=5)
