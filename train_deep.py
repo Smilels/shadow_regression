@@ -48,11 +48,11 @@ class Lighting(object):
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
+parser.add_argument('--test-batch-size', type=int, default=512, metavar='N',
                     help='input batch size for testing (default: 256)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 10)')
-parser.add_argument('--lr', type=float, default=0.00105, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                     help='learning rate (default: 0.01)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -73,7 +73,6 @@ parser.add_argument('--net', default='SIMPLE_deep', type=str,
 parser.add_argument('--parallel', action='store_true',default=True,
                     help='enables dataparallel')
 best_acc = 0
-grads = {}
 
 
 def main():
@@ -83,7 +82,7 @@ def main():
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-        #torch.cuda.set_device(3)
+        torch.cuda.set_device(0)
     global plotter
     plotter = VisdomLinePlotter(env_name=args.name)
 
@@ -189,12 +188,8 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         loss = 10 * loss_joint + loss_cons
         # print("loss is ",)
         optimizer.zero_grad()
-        # loss_joint.register_hook(print)
-        loss.register_hook(save_grad('loss_joint'))
         loss.backward()
         optimizer.step()
-
-        print(grads['loss_joint'])
 
         acc = accuracy(pos_feature, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
