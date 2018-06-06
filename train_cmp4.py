@@ -97,7 +97,9 @@ def main():
                                 transforms.Resize(380),
                                 transforms.CenterCrop(368),
                                 transforms.ColorJitter(0.05, 0.05, 0.05, 0.05),
-                                transforms.ToTensor(),
+                                transforms.RandomHorizontalFlip(p=0.5),
+			        transforms.RandomRotation(10),
+				transforms.ToTensor(),
                                 Lighting(0.1, _imagenet_pca['eigval'], _imagenet_pca['eigvec']),
                                 # transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
                             ])),
@@ -172,7 +174,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, feature2, feature3, feature4 = jnet(data1)
+        feature1, feature2, feature3, feature4, map_feature1, map_feature2, map_feature3, map_feature4 = jnet(data1)
 
         loss1 = criterion(feature1, joint_target)
         loss2 = criterion(feature2, joint_target)
@@ -186,14 +188,6 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        #params=model.state_dict()
-        #if isinstance(jnet, nn.DataParallel):
-         #   params = jnet.module.state_dict(),
-        #else:
-        #    params = jnet.state_dict(),
-        #modules = list(model.children())
-        #plotter.plot('last fc weight', 'weight', epoch, list(modules[-1].children())[-1].weight)
-        #plotter.plot('last fc bias', 'bias', epoch, list(modules[-1].children())[-1].bias)
 
         acc = accuracy(feature4, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
@@ -219,6 +213,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
     plotter.plot('acc2', 'train', epoch, accs2.avg)
     plotter.plot('acc3', 'train', epoch, accs3.avg)
     plotter.plot('loss', 'train', epoch, losses.avg)
+    # plotter.image(map_feature1, map_feature2, map_feature3,map_feature4)
 
 
 def test(test_loader, jnet, criterion, epoch):
@@ -237,7 +232,7 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, feature2, feature3, feature4 = jnet(data1)
+        feature1, feature2, feature3, feature4, _, _, _, _ = jnet(data1)
 
         loss1 = criterion(feature1, joint_target)
         loss2 = criterion(feature2, joint_target)
@@ -332,6 +327,11 @@ class VisdomLinePlotter(object):
             self.viz.line(X=np.array([x,x]), Y=np.array([y,y]), win = self.plots[var_name], env=self.env,
                         name=split_name, update='append')
 
+    def image(self,map_feature1, map_feature2, map_feature3,map_feature4):
+        self.viz.image(map_feature1, env='map1', opts=dict(title='map1'))
+        self.viz.image(map_feature2, env='map2', opts=dict(title='map2'))
+        self.viz.image(map_feature3, env='map3', opts=dict(title='map3'))
+        self.viz.image(map_feature4, env='map4', opts=dict(title='map4'))
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -357,7 +357,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
-    lr = args.lr * (0.5 ** (epoch // 50))
+    lr = args.lr * (0.5 ** (epoch // 20))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 

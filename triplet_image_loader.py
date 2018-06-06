@@ -122,35 +122,125 @@ if __name__ == '__main__':
     base_path = "./data/handpose_data/"
     train = SimpleImageLoader(base_path,True,
                               transform=transforms.Compose([
-                                  transforms.Resize(256),
-                                  transforms.CenterCrop(224),
+                                 # transforms.Resize(256),
+                                 # transforms.CenterCrop(224),
                                  # transforms.ColorJitter(0.05, 0.05, 0.05, 0.05),
                                   transforms.ToTensor(),
                                  # Lighting(0.1, _imagenet_pca['eigval'], _imagenet_pca['eigvec']),
                                   # transforms.Normalize(mean=[0.485, ], std=[0.229, ])
                               ]))
-    train_loader = torch.utils.data.DataLoader(train, batch_size = train.__len__(), shuffle=True, num_workers=2)
+    train_loader = torch.utils.data.DataLoader(train, batch_size = 16, shuffle=True, num_workers=2)
+    means = []
+    means1 = []
+    means2 = []
+    test = SimpleImageLoader(base_path,False,
+                              transform=transforms.Compose([transforms.ToTensor(),
+]))
+    print("starting")
+    print(train.__len__())
+    print(test.__len__())
+   # for  i in range(train.__len__()):
+   #     data,_= train.__getitem__(i)
+   #     #data = Variable(data)
+   #     data = data.numpy()
+   #     # print(data.shape)
+   #     pixels = data[0,:,:].ravel()
+   #     means.append(np.mean(pixels))
+   #     pixels1 = data[1,:,:].ravel()
+   #     means1.append(np.mean(pixels1))
+   #     pixels2 = data[2,:,:].ravel()
+   #     means2.append(np.mean(pixels2))
+   # print("start test data")
+   # for  i in range(test.__len__()):
+   #     data,_= test.__getitem__(i)
+   #     #data = Variable(data)
+   #     data = data.numpy()
+   #     pixels = data[0,:,:].ravel()
+   #     # print("pixel shape is",pixels.shape)
+   #     means.append(np.mean(pixels))
 
-    # img,joint = train.__getitem__(1330)
-    # print("image shape is", img.shape)
+   #     pixels1 = data[1,:,:].ravel()
+   #     means1.append(np.mean(pixels1))
+   #     pixels2 = data[2,:,:].ravel()
+   #     means2.append(np.mean(pixels2))
+
+   # mean_ = [np.mean(means),np.mean(means1),np.mean(means2)]
+   # print("whole means is",mean_)
+    print("starting std")
+    means = []
+    means1 = []
+    means2 = []
+    mean_ = [0.50710875, 0.4952812, 0.48967722]
+    stdevs = 0
+    stdevs1 = 0
+    stdevs2 = 0
+    for i in range(train.__len__()):
+        data,_= train.__getitem__(i)
+        data = data.numpy()
+        pixels = data[0,:,:].ravel()
+        pixels1 = data[1,:,:].ravel()
+        pixels2 = data[2,:,:].ravel()
+        cur = (pixels - mean_[0])**2
+        stdevs = stdevs + cur
+        cur1 = (pixels1 - mean_[1])**2
+        stdevs1 = stdevs1 + cur1
+        cur2 = (pixels2 - mean_[2])**2
+        stdevs2 = stdevs2 + cur2
+        if i %1000==0:
+           print("current train step is ", i)
+    print("the last part")
+    for i in range(test.__len__()):
+        data,_= test.__getitem__(i)
+        data = data.numpy()
+        pixels = data[0,:,:].ravel()
+        pixels1 = data[1,:,:].ravel()
+        pixels2 = data[2,:,:].ravel()
+        cur = (pixels - mean_[0])**2
+        stdevs = stdevs + cur
+        cur1 = (pixels1 - mean_[1])**2
+        stdevs1 = stdevs1 + cur1
+        cur2 = (pixels2 - mean_[2])**2
+        stdevs2 = stdevs2 + cur2
+        if i %1000==0:
+           print("current  test step is ", i)
+  
+    le =  train.__len__() + test.__len__()
+    print(np.mean(stdevs))
+    print(np.mean(stdevs1))
+    print(np.mean(stdevs2))
+
+    stdevs_ = [np.sqrt(np.mean(stdevs)),np.sqrt(np.mean(stdevs1)),np.sqrt(np.mean(stdevs2))]
+# print("image shape is", img.shape)
     # print(joint)
     # to_pil_image = transforms.ToPILImage()
     # img = to_pil_image(img)
     # img.show()
-    for step, (data,_) in enumerate(train_loader):
-        data = Variable(data)
-        print(step)
-        data = data.numpy()
-        # v1 = mean1 + data.float().mean()
-        # std1 = std1 + data.float().std()
-        #print(data.float().mean())
-        #print(data.float().std())
-        means = []
-        stdevs = []
-        for i in range(3):
-            pixels = data[:,i,:,:].ravel()
-            means.append(np.mean(pixels))
-            stdevs.append(np.std(pixels))
-        print("means: {}".format(means))
-        print("stdevs: {}".format(stdevs))
-        print('transforms.Normalize(mean = {}, std = {})'.format(means, stdevs))
+  ##means = []
+  #  means1 = []
+  #  means2 = []
+  #  stdevs = []
+  #  stdevs1 = []
+  #  stdevs2 = []
+  #  for step, (data,_) in enumerate(train_loader):
+  #      data = Variable(data)
+  #      data = data.numpy()
+  #      pixels = data[:,0,:,:].ravel()
+  #      means.append(np.mean(pixels))
+  #      pixels1 = data[:,1,:,:].ravel()
+  #      means1.append(np.mean(pixels1))
+  #      pixels2 = data[:,2,:,:].ravel()
+  #      means2.append(np.mean(pixels2))
+  #  mean_ = [np.mean(means),np.mean(means1),np.mean(means2)]
+  #  print("whole means is",mean_)
+
+  #  for step, (data,_) in enumerate(train_loader):
+  #      data = Variable(data)
+  #      data = data.numpy()
+  #      pixels = data[:,0,:,:].ravel()
+  #      pixels1 = data[:,1,:,:].ravel()
+  #      pixels2 = data[:,2,:,:].ravel()
+  #      stdevs.append((pixels - mean_[0])**2)
+  #      stdevs1.append((pixels1 - mean_[1])**2)
+  #      stdevs2.append((pixels2 - mean_[2])**2)
+  #  stdevs_ = [np.sqrt(np.mean(stdevs)),np.sqrt(np.mean(stdevs1)),np.sqrt(np.mean(stdevs2))]
+    print('transforms.Normalize(mean = {}, std = {})'.format(mean_, stdevs_))
