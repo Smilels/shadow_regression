@@ -3,3 +3,4 @@ test_bs:512
 lr:0.001
 decay_lr:0.5 50epoch
 目测：过拟合较严重
+cmp modal中 forward的只有featuremap1,代码出错
