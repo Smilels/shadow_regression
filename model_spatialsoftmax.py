@@ -140,7 +140,12 @@ if __name__ == '__main__':
     data[0,1,1,1] = 10
     data[0,2,1,2] = 10
     # layer = SpatialSoftmax(3, 3, 3, temperature=1)
-    model = SimpleRegression()
+    model = JointRegression() 
+    params = model.state_dict()
+    for k, v in params.items():
+            print(k)
+    y = params['pos_output.4.weight'].view(-1, 1)
+    print(y.shape[0])
     #print(model(data))
     # print(model(data)[0])
     # print(model(data)[1])
