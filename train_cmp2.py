@@ -65,8 +65,7 @@ parser.add_argument('--log-interval', type=int, default=20, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--margin', type=float, default=0.2, metavar='M',
                     help='margin for triplet loss (default: 0.2)')
-parser.add_argument('--resume', default='resume', type=str,
-                    help='path to latest checkpoint (default: none)')
+parser.add_argument('--resume', default='./checkoutpoint/Shadow_imitation_cmp2/checkpoint.pth.tar', type=str, help='path to latest checkpoint (default: none)')
 parser.add_argument('--name', default='Shadow_imitation_cmp2', type=str,
                     help='name of experiment')
 parser.add_argument('--net', default='CMP2', type=str,
@@ -215,7 +214,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
     plotter.plot('acc3', 'train', epoch, accs3.avg)
     plotter.plot('loss', 'train', epoch, losses.avg)
     if epoch%10==0:
-        plotter.image(map_feature1, map_feature2, map_feature3,map_feature4)
+        plotter.image(map_feature1, map_feature2)
 
 
 def test(test_loader, jnet, criterion, epoch):
@@ -327,19 +326,13 @@ class VisdomLinePlotter(object):
             self.viz.line(X=np.array([x,x]), Y=np.array([y,y]), win = self.plots[var_name], env=self.env,
                         name=split_name, update='append')
 
-    def image(self,map_feature1, map_feature2, map_feature3,map_feature4):
+    def image(self,map_feature1, map_feature2):
             self.viz.image(map_feature1,
                 env='map1', opts=dict(
                 title='map1'))
             self.viz.image(map_feature2,
                 env='map2', opts=dict(
                 title='map2'))
-            self.viz.image(map_feature3,
-                env='map3', opts=dict(
-                title='map3'))
-            self.viz.image(map_feature4,
-                env='map4', opts=dict(
-                title='map4'))
 
     def weight(self,x,state):
         # the following code can get the name of each layer
