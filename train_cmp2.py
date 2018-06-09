@@ -213,8 +213,8 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
     plotter.plot('acc2', 'train', epoch, accs2.avg)
     plotter.plot('acc3', 'train', epoch, accs3.avg)
     plotter.plot('loss', 'train', epoch, losses.avg)
-    if epoch%10==0:
-        plotter.image(map_feature1, map_feature2)
+    #if epoch%10==0:
+    #    plotter.image(map_feature1, map_feature2)
 
 
 def test(test_loader, jnet, criterion, epoch):
@@ -383,7 +383,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(jnet, optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 2 every 50 epochs"""
-    lr = args.lr * (0.5 ** (epoch // 30))
+    lr = args.lr * (0.5 ** (epoch // 10))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
