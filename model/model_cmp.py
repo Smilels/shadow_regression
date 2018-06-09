@@ -206,8 +206,8 @@ class CPM(nn.Module):
         Mconv5_stage6_map = self._stage6(pool3_stage2_map, Mconv5_stage5_map)  # result of stage 6
         Mconv5_stage6_map_feature = Mconv5_stage6_map.view(-1, 22 * 45 * 45)
 
-        return conv7_stage1_map_feature, Mconv5_stage2_map_feature, Mconv5_stage3_map_feature,\
-               Mconv5_stage4_map_feature,Mconv5_stage5_map_feature, Mconv5_stage6_map_feature
+        return conv7_stage1_map_feature, Mconv5_stage2_map_feature, Mconv5_stage3_map_feature, Mconv5_stage4_map_feature, Mconv5_stage5_map_feature, Mconv5_stage6_map_feature, conv7_stage1_map, Mconv5_stage2_map, Mconv5_stage3_map, Mconv5_stage4_map, Mconv5_stage5_map ,Mconv5_stage6_map_feature
+
 
 
 class CPM_fus4(nn.Module):
@@ -225,7 +225,7 @@ class CPM_fus4(nn.Module):
 
     def forward(self, img):
         conv7_stage1_map_feature, Mconv5_stage2_map_feature, Mconv5_stage3_map_feature,\
-        Mconv5_stage4_map_feature, _, _ =self.map_feature(img)
+        Mconv5_stage4_map_feature, _, _, _, _, _, _, _, _=self.map_feature(img)
         feature_map = torch.cat(
             (conv7_stage1_map_feature, Mconv5_stage2_map_feature, Mconv5_stage3_map_feature,
              Mconv5_stage4_map_feature),
@@ -270,7 +270,7 @@ class CPM4(nn.Module):
 
     def forward(self, img):
         conv7_stage1_map_feature, Mconv5_stage2_map_feature, Mconv5_stage3_map_feature,\
-        Mconv5_stage4_map_feature, _, _ = self.map_feature(img)
+        Mconv5_stage4_map_feature, _, _, _,_,_,_,_,_ = self.map_feature(img)
         joints_stage1 = self.feature_stage1(conv7_stage1_map_feature)
         joints_stage2 = self.feature_stage2(Mconv5_stage2_map_feature)
         joints_stage3 = self.feature_stage3(Mconv5_stage3_map_feature)
@@ -301,11 +301,11 @@ class CPM2(nn.Module):
         )
 
     def forward(self, img):
-        conv7_stage1_map_feature, Mconv5_stage2_map_feature, _, _, _, _ = self.map_feature(img)
+        conv7_stage1_map_feature, Mconv5_stage2_map_feature, _, _, _, _, conv7_stage1_map, Mconv5_stage2_map, _,_,_,_ = self.map_feature(img)
         joints_stage1 = self.feature_stage1(conv7_stage1_map_feature)
         joints_stage2 = self.feature_stage2(Mconv5_stage2_map_feature)
         return joints_stage1, joints_stage2, \
-               conv7_stage1_map_feature, Mconv5_stage2_map_feature
+               conv7_stage1_map, Mconv5_stage2_map
 
 
 class CPM6(nn.Module):
@@ -358,7 +358,7 @@ class CPM6(nn.Module):
 
     def forward(self, img):
         conv7_stage1_map_feature, Mconv5_stage2_map_feature, Mconv5_stage3_map_feature, \
-        Mconv5_stage4_map_feature, Mconv5_stage5_map_feature, Mconv5_stage6_map_feature = self.map_feature(img)
+        Mconv5_stage4_map_feature, Mconv5_stage5_map_feature, Mconv5_stage6_map_feature,_,_,_,_,_,_ = self.map_feature(img)
         joints_stage1 = self.feature_stage1(conv7_stage1_map_feature)
         joints_stage2 = self.feature_stage2(Mconv5_stage2_map_feature)
         joints_stage3 = self.feature_stage3(Mconv5_stage3_map_feature)
