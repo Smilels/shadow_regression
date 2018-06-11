@@ -10,8 +10,8 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-from model.model_cmp import CPM2
-from triplet_image_loader import SimpleImageLoader
+from model.model_cmp import CPM_fus2
+from triplet_image_loader_check import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
 import torch.utils.model_zoo as model_zoo
@@ -49,7 +49,7 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=8, metavar='N',
+parser.add_argument('--batch-size', type=int, default=1, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=516, metavar='N',
                     help='input batch size for testing (default: 256)')
@@ -92,7 +92,7 @@ def main():
 
     print('==>Preparing data...')
 
-    base_path = "./data/handpose_data/"
+    base_path = "./data/handpose_data_test/"
     train_loader = torch.utils.data.DataLoader(
         SimpleImageLoader(base_path, train=True,
                             transform=transforms.Compose([
@@ -117,7 +117,7 @@ def main():
                             ])),
         batch_size=args.batch_size, drop_last=False, **kwargs)
 
-    jnet = CPM2(22)
+    jnet = CPM_fus2(22)
     if args.cuda:
         jnet.cuda()
         if torch.cuda.device_count() > 1 and args.parallel:
@@ -165,9 +165,6 @@ def main():
 def train(train_loader, jnet, criterion, optimizer, epoch):
     accs ={} 
     losses = AverageMeter()
-    accs1 = AverageMeter()
-    accs2 = AverageMeter()
-    accs3 = AverageMeter()
 
     # switch to train mode
     jnet.train()
@@ -179,21 +176,22 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, map1, map2 = jnet(data1)
+        feature, map1, map2 = jnet(data1)
 
-        loss1 = criterion(feature1, joint_target)
-        loss_cons = joint_constraits(feature2)
-        loss = 10 * loss1 + loss_cons
+        loss_joint = criterion(feature, joint_target)
+        loss_cons = joint_constraits(feature)
+        loss = 10 * loss_joint + loss_cons
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        acc = accuracy(feature1, joint_target, accuracy_thre=[0.1,0.15,0.2,0.225,0.25, 0.275,0.3,0.35,0.4,0.45,0.5])
+        accuracy_thre = [0.1, 0.15, 0.2, 0.225, 0.25, 0.275, 0.3, 0.35, 0.4, 0.45, 0.5]
+        acc = accuracy(feature, joint_target, accuracy_thre)
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
         ll = loss.data
         losses.update(ll, data1.size(0))
-        for i in range(0,len(accuracy_thre)-1):
+        for i in range(0,len(accuracy_thre)):
             accs[i]=(AverageMeter())
             accs[i].update(acc[i],data1.size(0))
 
@@ -216,10 +214,9 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
 
 
 def test(test_loader, jnet, criterion, epoch):
+    accs = {}
     losses = AverageMeter()
-    accs1 = AverageMeter()
-    accs2 = AverageMeter()
-    accs3 = AverageMeter()
+
     # switch to evaluation mode
     jnet.eval()
 
@@ -231,19 +228,18 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature1, feature2, map1, map2 = jnet(data1)
+        feature, map1, map2 = jnet(data1)
 
-        loss1 = criterion(feature1, joint_target)
-        loss2 = criterion(feature2, joint_target)
-        loss_joint = loss1 + loss2
-        loss_cons = joint_constraits(feature2)
+        loss_joint = criterion(feature, joint_target)
+        loss_cons = joint_constraits(feature)
         loss = 10 * loss_joint + loss_cons
 
-        acc = accuracy(feature1, joint_target, accuracy_thre=[0.1,0.15,0.2,0.225,0.25, 0.275,0.3,0.35,0.4,0.45,0.5])
+        accuracy_thre = [0.1, 0.15, 0.2, 0.225, 0.25, 0.275, 0.3, 0.35, 0.4, 0.45, 0.5]
+        acc = accuracy(feature, joint_target, accuracy_thre)
         # error solution "TypeError: tensor(0.5809) is not JSON serializable"
         ll = loss.data
         losses.update(ll, data1.size(0))
-        for i in range(0,len(accuracy_thre)-1):
+        for i in range(0,len(accuracy_thre)):
             accs[i]=(AverageMeter())
             accs[i].update(acc[i],data1.size(0))
 
@@ -314,8 +310,8 @@ class VisdomLinePlotter(object):
         s = np.array([x,x])
         w = np.array([y[0].avg, y[0].avg])
         for i in range(1,len(y)):
-                s = np.column_stack((s, np.array([x, x]))
-                w = np.column_stack((w, np.array([y[i].avg, y[i].avg)))
+            s = np.column_stack((s, np.array([x, x])))
+            w = np.column_stack((w, np.array([y[i].avg, y[i].avg])))
         if var_name not in self.plots:
             self.plots[var_name] = self.viz.line(X=s, Y=w,
                 env=self.env, name=split_name, opts=dict(
