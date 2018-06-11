@@ -11,7 +11,7 @@ from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 from model.model_cmp import CPM_fus2
-from triplet_image_loader_check import SimpleImageLoader
+from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
 import torch.utils.model_zoo as model_zoo
@@ -49,7 +49,7 @@ class Lighting(object):
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=1, metavar='N',
+parser.add_argument('--batch-size', type=int, default=8, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=516, metavar='N',
                     help='input batch size for testing (default: 256)')
@@ -92,7 +92,7 @@ def main():
 
     print('==>Preparing data...')
 
-    base_path = "./data/handpose_data_test/"
+    base_path = "./data/handpose_data/"
     train_loader = torch.utils.data.DataLoader(
         SimpleImageLoader(base_path, train=True,
                             transform=transforms.Compose([
@@ -121,7 +121,7 @@ def main():
     if args.cuda:
         jnet.cuda()
         if torch.cuda.device_count() > 1 and args.parallel:
-           jnet = nn.DataParallel(jnet,device_ids=[0,1])
+           jnet = nn.DataParallel(jnet,device_ids=[0,3])
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
 
@@ -192,7 +192,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         ll = loss.data
         losses.update(ll, data1.size(0))
         for i in range(0,len(accuracy_thre)):
-            accs[i]=(AverageMeter())
+            accs[i]= AverageMeter()
             accs[i].update(acc[i],data1.size(0))
 
         if batch_idx % args.log_interval == 0:
@@ -207,7 +207,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
                     100. * accs[4].val, 100. * accs[4].avg))
 
     # log avg values to somewhere
-    plotter.plot('acc', 'train', epoch, accs)
+    plotter.plot_ac('acc', 'train', epoch, accs)
     plotter.plot('loss', 'train', epoch, losses.avg)
    # if epoch%1 == 0:
       #  plotter.image(map1.cpu(),map2.cpu())
@@ -240,25 +240,26 @@ def test(test_loader, jnet, criterion, epoch):
         ll = loss.data
         losses.update(ll, data1.size(0))
         for i in range(0,len(accuracy_thre)):
-            accs[i]=(AverageMeter())
+            accs[i]= AverageMeter()
             accs[i].update(acc[i],data1.size(0))
 
         if batch_idx % args.log_interval == 0:
-            print('Train Simple Epoch: {} [{}/{}]\t'
+            print('Test Simple Epoch: {} [{}/{}]\t'
                   'Loss: {:.4f} ({:.4f}) ({:.4f})\t'
                   'Acc1: {:.2f}% ({:.2f}%) \t'
                   'Acc2: {:.2f}% ({:.2f}%) \t'
                   'Acc3: {:.2f}% ({:.2f}%) '.format(
-                    epoch, batch_idx * len(data1), len(train_loader.dataset),
+                    epoch, batch_idx * len(data1), len(test_loader.dataset),
                     losses.val, losses.avg, loss_cons, 100. * accs[2].val, 100. * accs[2].avg,
                     100. * accs[3].val, 100. * accs[3].avg,
                     100. * accs[4].val, 100. * accs[4].avg))
 
     # log avg values to somewhere
-    plotter.plot('acc', 'train', epoch, accs)
-    plotter.plot('loss', 'train', epoch, losses.avg)
- 
+    plotter.plot_ac('acc', 'test', epoch, accs)
+    plotter.plot('loss', 'test', epoch, losses.avg)
+
     return accs[3].avg
+
 
 
 def joint_constraits(pos_feature):
@@ -306,7 +307,7 @@ class VisdomLinePlotter(object):
         self.env = env_name
         self.plots = {}
 
-    def plot(self, var_name, split_name, x, y):
+    def plot_ac(self, var_name, split_name, x, y):
         s = np.array([x,x])
         w = np.array([y[0].avg, y[0].avg])
         for i in range(1,len(y)):
@@ -315,7 +316,6 @@ class VisdomLinePlotter(object):
         if var_name not in self.plots:
             self.plots[var_name] = self.viz.line(X=s, Y=w,
                 env=self.env, name=split_name, opts=dict(
-                legend=[split_name],
                 title=var_name,
                 xlabel='Epochs',
                 ylabel=var_name
@@ -323,8 +323,21 @@ class VisdomLinePlotter(object):
         else:
             self.viz.line(X=s, Y=w, win = self.plots[var_name], env=self.env,
                         name=split_name, update='append')
+    
+    def plot(self, var_name, split_name, x, y):
+        if var_name not in self.plots:
+           self.plots[var_name] = self.viz.line(X=np.array([x, x]),
+                 Y=np.array([y, y]),
+                 env=self.env, name=split_name, opts=dict(
+                            legend=[split_name],
+                            title=var_name,
+                            xlabel='Epochs',
+                            ylabel=var_name
+                            ))
+        else:
+           self.viz.line(X=np.array([x,x]), Y=np.array([y,y]), win = self.plots[var_name], env=self.env,name=split_name, update='append')
 
-    def image(self,map1, map2):
+    def image(self,map_feature1, map_feature2):
         map1 =  map1.sum(dim=0)
         map1 =  map1.sum(dim=0)
         map2 =  map2.sum(dim=0)
