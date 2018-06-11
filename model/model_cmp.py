@@ -307,6 +307,27 @@ class CPM2(nn.Module):
         return joints_stage1, joints_stage2, \
                conv7_stage1_map, Mconv5_stage2_map
 
+class CPM_fus2(nn.Module):
+    def __init__(self, out_c):
+        super(CPM_fus2, self).__init__()
+        self.out_c = out_c
+        self.map_feature = CPM(self.out_c)
+        self.feature_stage = nn.Sequential(
+            nn.Linear(self.out_c * 45 * 45 *2, 256),
+            nn.ReLU(),
+            nn.Linear(256, 64),
+            nn.ReLU(),
+            nn.Linear(64, 22)
+        )
+
+    def forward(self, img):
+        conv7_stage1_map_feature, Mconv5_stage2_map_feature, _, _, _, _, conv7_stage1_map, Mconv5_stage2_map, _,_,_,_ = self.map_feature(img)
+        feature_map = torch.cat(
+            (conv7_stage1_map_feature, Mconv5_stage2_map_feature),dim=1)
+        joints_stage = self.feature_stage(feature_map)
+        return joints_stage, \
+               conv7_stage1_map, Mconv5_stage2_map
+
 
 class CPM6(nn.Module):
     def __init__(self, out_c):
