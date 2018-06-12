@@ -176,7 +176,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature, map1, map2 = jnet(data1)
+        feature, _, _ = jnet(data1)
 
         loss_joint = criterion(feature, joint_target)
         loss_cons = joint_constraits(feature)
@@ -207,7 +207,7 @@ def train(train_loader, jnet, criterion, optimizer, epoch):
                     100. * accs[4].val, 100. * accs[4].avg))
 
     # log avg values to somewhere
-    plotter.plot_ac('acc', 'train', epoch, accs)
+    plotter.plot_ac('acc_train', 'train', epoch, accs)
     plotter.plot('loss', 'train', epoch, losses.avg)
    # if epoch%1 == 0:
       #  plotter.image(map1.cpu(),map2.cpu())
@@ -228,7 +228,7 @@ def test(test_loader, jnet, criterion, epoch):
         data1, joint_target = Variable(data1), Variable(joint_target)
 
         # compute output
-        feature, map1, map2 = jnet(data1)
+        feature, _, _ = jnet(data1)
 
         loss_joint = criterion(feature, joint_target)
         loss_cons = joint_constraits(feature)
@@ -255,11 +255,10 @@ def test(test_loader, jnet, criterion, epoch):
                     100. * accs[4].val, 100. * accs[4].avg))
 
     # log avg values to somewhere
-    plotter.plot_ac('acc', 'test', epoch, accs)
+    plotter.plot_ac_test('acc_test', 'test', epoch, accs)
     plotter.plot('loss', 'test', epoch, losses.avg)
 
     return accs[3].avg
-
 
 
 def joint_constraits(pos_feature):
@@ -313,17 +312,52 @@ class VisdomLinePlotter(object):
         for i in range(1,len(y)):
             s = np.column_stack((s, np.array([x, x])))
             w = np.column_stack((w, np.array([y[i].avg, y[i].avg])))
-        if var_name not in self.plots:
-            self.plots[var_name] = self.viz.line(X=s, Y=w,
-                env=self.env, name=split_name, opts=dict(
-                title=var_name,
-                xlabel='Epochs',
-                ylabel=var_name
-            ))
+        if x == 1:
+            self.viz.line(
+                X=s,
+                Y=w,
+                env=self.env,
+                win=var_name,
+                opts = dict(
+                        title=var_name,
+                        xlabel='Epochs',
+                        ylabel=var_name
+                        ))
         else:
-            self.viz.line(X=s, Y=w, win = self.plots[var_name], env=self.env,
-                        name=split_name, update='append')
-    
+            self.viz.line(
+                X=s,
+                Y=w,
+                env=self.env,
+                win=var_name,
+                update='append'
+        )
+
+    def plot_ac_test(self, var_name, split_name, x, y):
+        s = np.array([x, x])
+        w = np.array([y[0].avg, y[0].avg])
+        for i in range(1, len(y)):
+            s = np.column_stack((s, np.array([x, x])))
+            w = np.column_stack((w, np.array([y[i].avg, y[i].avg])))
+        if x == 1:
+            self.viz.line(
+                X=s,
+                Y=w,
+                env=self.env,
+                win=var_name,
+                opts=dict(
+                    title=var_name,
+                    xlabel='Epochs',
+                    ylabel=var_name
+                ))
+        else:
+            self.viz.line(
+                X=s,
+                Y=w,
+                env=self.env,
+                win=var_name,
+                update='append'
+            )
+
     def plot(self, var_name, split_name, x, y):
         if var_name not in self.plots:
            self.plots[var_name] = self.viz.line(X=np.array([x, x]),
@@ -368,11 +402,12 @@ class VisdomLinePlotter(object):
                 Y=w,
                 win='weights'
             )
-        self.viz.line(
-            X=s,
-            Y=w,
-            win='weights',
-            update='append'
+        else:
+            self.viz.line(
+                X=s,
+                Y=w,
+                win='weights',
+                update='append'
         )
 
 
