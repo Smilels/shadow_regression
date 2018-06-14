@@ -7,6 +7,7 @@ from torchvision import transforms
 import os
 from numpy import random
 from torch.autograd import Variable
+import torch.utils.data
 
 _imagenet_pca = {
     'eigval': torch.Tensor([0.2175, 0.0188, 0.0045]),
