@@ -129,7 +129,7 @@ class SimpleImageLoader(torch.utils.data.Dataset):
 
 
 if __name__ == '__main__':
-    base_path = "./data/handpose_data1/"
+    base_path = "./data/handpose_data_test/"
     #p.rotate(probability=1, max_left_rotation=5, max_right_rotation=5)
     #p.flip_left_right(probability=0.5)
     # p = Augmentor.Pipeline("./data/handpose_data")
@@ -142,32 +142,37 @@ if __name__ == '__main__':
                               transform=transforms.Compose([
                                   transforms.Resize(256),
                                   transforms.CenterCrop(224),
-                                  transforms.ColorJitter(0.1, 0.05, 0.05, 0.05),
-                                  transforms.RandomVerticalFlip(p=0.1),
-                                  transforms.RandomHorizontalFlip(p=0.5),
-                                  transforms.RandomRotation(10),
+                                  # transforms.ColorJitter(0.1, 0.05, 0.05, 0.05),
+                                  # transforms.RandomVerticalFlip(p=0.1),
+                                  # transforms.RandomHorizontalFlip(p=0.5),
+                                  # transforms.RandomRotation(10),
                                   transforms.ToTensor(),
-                                  Lighting(0.1, _imagenet_pca['eigval'], _imagenet_pca['eigvec']),
+                                  # Lighting(0.1, _imagenet_pca['eigval'], _imagenet_pca['eigvec']),
                                   # transforms.Normalize(mean=[0.485, ], std=[0.229, ])
                               ]))
-    train_loader = torch.utils.data.DataLoader(train, batch_size = train.__len__(), shuffle=True, num_workers=2)
+    train_loader = torch.utils.data.DataLoader(train, batch_size = 1, shuffle=False, num_workers=2)
 
-    img,joint = train.__getitem__(130)
+    img,joint = train.__getitem__(0)
     # print("image shape is", img.shape)
     # print(joint)
     to_pil_image = transforms.ToPILImage()
     img = to_pil_image(img)
     img.show()
-    img.save("a.jpg")
-    # for step, (data,_) in enumerate(train_loader):
-    #     data = Variable(data)
-    #     data = data.numpy()
-    #     means = []
-    #     stdevs = []
-    #     for i in range(3):
-    #         pixels = data[:, i, :, :].ravel()
-    #         means.append(np.mean(pixels))
-    #         stdevs.append(np.std(pixels))
-    #     print("means: {}".format(means))
-    #     print("stdevs: {}".format(stdevs))
-    #     print('transforms.Normalize(mean = {}, std = {})'.format(means, stdevs))
+    for step, (data,_) in enumerate(train_loader):
+        # data = Variable(data)
+        # data = data.numpy()
+        if step==1 :
+            print(data.shape)
+            img = data.squeeze()
+            img = to_pil_image(img)
+            img.show()
+
+        # means = []
+        # stdevs = []
+        # for i in range(3):
+        #     pixels = data[:, i, :, :].ravel()
+        #     means.append(np.mean(pixels))
+        #     stdevs.append(np.std(pixels))
+        # print("means: {}".format(means))
+        # print("stdevs: {}".format(stdevs))
+        # print('transforms.Normalize(mean = {}, std = {})'.format(means, stdevs))
