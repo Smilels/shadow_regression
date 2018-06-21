@@ -6,7 +6,7 @@ class Map_Loader(object):
     def __init__(self, base_path= "./data/"):
         # load data
         self.base_path = base_path
-        DataFile = open(base_path + "test.txt", "r")
+        DataFile = open(base_path + "Training_Annotation.txt", "r")
 
         lines = DataFile.read().splitlines()
         self.framelist = [ln.split(' ')[0].replace("\t", "") for ln in lines]
