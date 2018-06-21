@@ -1,7 +1,6 @@
 import numpy as np
 import math
-from mayavi import mlab
-
+import csv
 
 class Map_Loader(object):
     def __init__(self, base_path= "./data/"):
@@ -20,8 +19,6 @@ class Map_Loader(object):
         self.label = np.array(self.label)
         DataFile.close()
         self.shadow = self.shadow_model()
-        from IPython import embed;
-        embed()
 
     def map(self, start):
         rh_palm, rh_pip_mcp, rh_dip_pip, rh_tip_dip = self.shadow
@@ -141,126 +138,17 @@ class Map_Loader(object):
         return [rh_palm, rh_pip_mcp, rh_dip_pip ,rh_tip_dip]
 
 
-def show_line(un1, un2, color='g', scale_factor=1):
-    if color == 'b':
-        color_f = (0.8, 0, 0.9)
-    elif color == 'r':
-        color_f = (0.3, 0.2,0.7)
-    elif color == 'p':
-        color_f = (0.1, 1, 0.8)
-    elif color == 'y':
-        color_f = (0.5, 1, 1)
-    elif color == 'g':
-        color_f = (1, 1, 0)
-    elif isinstance(color, tuple):
-        color_f = color
-    else:
-        color_f = (1, 1, 1)
-    mlab.plot3d([un1[0], un2[0]], [un1[1], un2[1]], [un1[2], un2[2]], color=color_f, tube_radius=scale_factor)
-
-
-def show_points(point, color='b', scale_factor=5):
-    if color == 'b':
-        color_f = (0, 0, 1)
-    elif color == 'r':
-        color_f = (1, 0, 0)
-    elif color == 'g':
-        color_f = (0, 1, 0)
-    else:
-        color_f = (1, 1, 1)
-    if point.size == 3:  # vis for only one point
-        mlab.points3d(point[0], point[1], point[2], color=color_f, scale_factor=scale_factor)
-    else:  # vis for multiple points
-        mlab.points3d(point[:, 0], point[:, 1], point[:, 2], color=color_f, scale_factor=scale_factor)
-
-
-def show_hand(points,type='human'):
-    show_points(points)
-    if type=="human":
-        show_line(points[0], points[1], color='r')
-        show_line(points[1], points[6], color='r')
-        show_line(points[7], points[6], color='r')
-        show_line(points[7], points[8], color='r')
-
-        show_line(points[0], points[2], color='y')
-        show_line(points[9], points[2], color='y')
-        show_line(points[9], points[10], color='y')
-        show_line(points[11], points[10], color='y')
-
-        show_line(points[0], points[3], color='g')
-        show_line(points[12], points[3], color='g')
-        show_line(points[12], points[13], color='g')
-        show_line(points[14], points[13], color='g')
-
-        show_line(points[0], points[4], color='b')
-        show_line(points[15], points[4], color='b')
-        show_line(points[15], points[16], color='b')
-        show_line(points[17], points[16], color='b')
-
-        show_line(points[0], points[5], color='p')
-        show_line(points[18], points[5], color='p')
-        show_line(points[18], points[19], color='p')
-        show_line(points[20], points[19], color='p')
-    else:
-        show_line(points[0], points[1], color='r')
-        show_line(points[1], points[6], color='r')
-        show_line(points[7], points[6], color='r')
-        show_line(points[7], points[8], color='r')
-
-        show_line(points[0], points[2], color='y')
-        show_line(points[9], points[2], color='y')
-        show_line(points[9], points[10], color='y')
-        show_line(points[11], points[10], color='y')
-
-        show_line(points[0], points[3], color='g')
-        show_line(points[12], points[3], color='g')
-        show_line(points[12], points[13], color='g')
-        show_line(points[14], points[13], color='g')
-
-        show_line(points[0], points[4], color='b')
-        show_line(points[15], points[4], color='b')
-        show_line(points[15], points[16], color='b')
-        show_line(points[17], points[16], color='b')
-
-        show_line(points[0], points[5], color='p')
-        show_line(points[18], points[5], color='p')
-        show_line(points[18], points[19], color='p')
-        show_line(points[20], points[19], color='p')
-    tf_palm = points[1] - points[0]
-    ff_palm = points[2] - points[0]
-    mf_palm = points[3] - points[0]
-    rf_palm = points[4] - points[0]
-    lf_palm = points[5] - points[0]
-    # palm = np.array([tf_palm, ff_palm, mf_palm, rf_palm, lf_palm])
-    palm = np.array([ff_palm, mf_palm, rf_palm, lf_palm])
-
-    # local wrist frame build
-    wrist_z = np.mean(palm, axis=0)
-    wrist_z /= np.linalg.norm(wrist_z)
-    wrist_y = np.cross(lf_palm, rf_palm)
-    wrist_y /= np.linalg.norm(wrist_y)
-    wrist_x = np.cross(wrist_y, wrist_z)
-    if np.linalg.norm(wrist_x) != 0:
-        wrist_x /= np.linalg.norm(wrist_x)
-
-    mlab.quiver3d(points[0][0], points[0][1], points[0][2], wrist_x[0], wrist_x[1], wrist_x[2],
-                  scale_factor=50, line_width=0.5, color=(1, 0, 0), mode='arrow')
-    mlab.quiver3d(points[0][0], points[0][1], points[0][2], wrist_y[0], wrist_y[1], wrist_y[2],
-                  scale_factor=50, line_width=0.5, color=(0, 1, 0), mode='arrow')
-    mlab.quiver3d(points[0][0], points[0][1], points[0][2], wrist_z[0], wrist_z[1], wrist_z[2],
-                  scale_factor=50, line_width=0.5, color=(0, 0, 1), mode='arrow')
-    # from IPython import embed;embed()
-    # mlab.show()
-
-
 if __name__ == '__main__':
     batch_size = 1
     base_path= "./data/"
     map_loader = Map_Loader(base_path)
+    csvSum = open(base_path + "human_robot_mapdata.csv", "w")
+    writer = csv.writer(csvSum)
+    print(len(map_loader.framelist))
     for i in range(0, len(map_loader.framelist)):
-        key, frame = map_loader.map(i, batch_size)
+        key, frame = map_loader.map(i)
         ## save key
-        csvSum = open(self.base_path + "human_robot_mapdata.csv", "w")
-        writer = csv.writer(csvSum)
-        result = [frame, key[0], key[1], key[2], key[3], key[4]]
+        result = [frame, key[0][0], key[0][1], key[0][2], key[1][0], key[1][1], key[1][2], key[2][0]
+        , key[2][1], key[2][2], key[3][0], key[3][1], key[3][2], key[4][0], key[4][1], key[4][2]]
         writer.writerow(result)
+    csvSum.close()
