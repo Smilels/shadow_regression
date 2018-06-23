@@ -6,7 +6,7 @@ class Map_Loader(object):
     def __init__(self, base_path= "./data/"):
         # load data
         self.base_path = base_path
-        DataFile = open(base_path + "Training_Annotation.txt", "r")
+        DataFile = open(base_path + "test.txt", "r")
 
         lines = DataFile.read().splitlines()
         self.framelist = [ln.split(' ')[0].replace("\t", "") for ln in lines]
@@ -97,9 +97,10 @@ class Map_Loader(object):
                                     rh_pip_mcp_key[3], rh_dip_pip_key[3], rh_tip_dip_key[3],
                                     rh_pip_mcp_key[4], rh_dip_pip_key[4], rh_tip_dip_key[4]])
 
-        keys= rh_tip_dip_key/1000
+        keys = rh_tip_dip_key/1000
+        pip_keys = rh_pip_mcp_key/1000
         # from IPython import embed;embed()
-        return keys, frame
+        return keys, pip_keys, frame
 
     def shadow_model(self):
         # shadow hand length
@@ -140,15 +141,17 @@ class Map_Loader(object):
 
 if __name__ == '__main__':
     batch_size = 1
-    base_path= "./data/"
+    base_path= "./data/trainning/"
     map_loader = Map_Loader(base_path)
-    csvSum = open(base_path + "human_robot_mapdata.csv", "w")
+    csvSum = open(base_path + "human_robot_mapdata_pip.csv", "w")
     writer = csv.writer(csvSum)
     print(len(map_loader.framelist))
     for i in range(0, len(map_loader.framelist)):
-        key, frame = map_loader.map(i)
+        key, pip_key, frame = map_loader.map(i)
         ## save key
         result = [frame, key[0][0], key[0][1], key[0][2], key[1][0], key[1][1], key[1][2], key[2][0]
-        , key[2][1], key[2][2], key[3][0], key[3][1], key[3][2], key[4][0], key[4][1], key[4][2]]
+        , key[2][1], key[2][2], key[3][0], key[3][1], key[3][2], key[4][0], key[4][1], key[4][2],
+        pip_key[0][0], pip_key[0][1], pip_key[0][2], pip_key[1][0], pip_key[1][1], pip_key[1][2], pip_key[2][0],
+        pip_key[2][1], pip_key[2][2], pip_key[3][0], pip_key[3][1], pip_key[3][2], pip_key[4][0], pip_key[4][1], pip_key[4][2]]
         writer.writerow(result)
     csvSum.close()
