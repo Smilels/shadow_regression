@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_move_group
   bio_ik
   moveit_ros_planning_interface
+  cv_bridge
 )
 find_package( OpenCV REQUIRED )
 catkin_package(CATKIN_DEPENDS moveit_core moveit_ros_planning bio_ik moveit_ros_planning roscpp)
@@ -21,3 +22,7 @@ include_directories(
 add_executable(bioik_dataset src/bioik_dataset.cpp)
 add_dependencies(bioik_dataset ${catkin_EXPORTED_TARGETS})
 target_link_libraries(bioik_dataset ${catkin_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(tams_bioik_dataset src/tams_bioik_dataset.cpp)
+add_dependencies(tams_bioik_dataset ${catkin_EXPORTED_TARGETS})
+target_link_libraries(tams_bioik_dataset ${catkin_LIBRARIES} ${OpenCV_LIBS})

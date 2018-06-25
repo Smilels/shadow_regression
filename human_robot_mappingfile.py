@@ -277,16 +277,16 @@ if __name__ == '__main__':
         mcp_keys[1][0], mcp_keys[1][1], mcp_keys[1][2], mcp_keys[2][0], mcp_keys[2][1], mcp_keys[2][2],
         mcp_keys[3][0], mcp_keys[3][1], mcp_keys[3][2], mcp_keys[4][0], mcp_keys[4][1], mcp_keys[4][2]]
         writer.writerow(result)
-        img = cv2.imread(base_path + frame, cv2.IMREAD_ANYDEPTH)
-        norm_image = cv2.normalize(img, None, alpha = 0, beta = 1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        cv2.imshow("depth", norm_image)
-        cv2.waitKey(2)
-
-        mlab.clf
-        mlab.figure(bgcolor=(1,1,1))
+        # img = cv2.imread(base_path + frame, cv2.IMREAD_ANYDEPTH)
+        # norm_image = cv2.normalize(img, None, alpha = 0, beta = 1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        # cv2.imshow("depth", norm_image)
+        # cv2.waitKey(2)
+        #
+        # mlab.clf
+        # mlab.figure(bgcolor=(1,1,1))
         # show_hand(shadow_points, 'shadow')
-        show_hand(local_points, 'human')
+        # show_hand(local_points, 'human')
         # mlab.savefig(filename= "./data/handshape/" + str(i+1) +'.png')
         # mlab.close()
-        mlab.show()
+        # mlab.show()
     csvSum.close()

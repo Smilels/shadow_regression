@@ -1,6 +1,4 @@
 from __future__ import division
-import rospy, sys
-import moveit_commander
 import numpy as np
 import math
 from mayavi import mlab
@@ -23,8 +21,8 @@ class Map_Loader(object):
         self.label = np.array(self.label)
         DataFile.close()
         self.shadow = self.shadow_model()
-        from IPython import embed;
-        embed()
+        # from IPython import embed;
+        # embed()
 
     def map(self, start, batch_size):
         rh_palm, rh_pip_mcp, rh_dip_pip, rh_tip_dip = self.shadow
@@ -91,6 +89,8 @@ class Map_Loader(object):
 
             coe_palm = rh_palm / hh_palm
             rh_wrist_mcp_key = np.multiply(coe_palm.reshape(-1, 1), local_palm)
+            rh_wrist_mcp_key[0][2] = rh_wrist_mcp_key[0][2] + 29
+
             coe_pip_mcp = rh_pip_mcp / hh_pip_mcp
             rh_pip_mcp_key = np.multiply(coe_pip_mcp.reshape(-1, 1), pip_mcp) + rh_wrist_mcp_key
             coe_dip_pip = rh_dip_pip / hh_dip_pip
@@ -111,13 +111,14 @@ class Map_Loader(object):
             # from IPython import embed;embed()
         return keys,local_pp,shadow_pp
 
+
     def shadow_model(self):
         # shadow hand length
-        rh_tf_palm = math.sqrt(math.pow(29, 2) + math.pow(34, 2))
-        rh_ff_palm = 95
-        rh_mf_palm = 99
-        rh_rf_palm = 95
-        rh_lf_palm = 86.6
+        rh_tf_palm = 34
+        rh_ff_palm = math.sqrt(math.pow(95, 2) + math.pow(33, 2))
+        rh_mf_palm = math.sqrt(math.pow(99, 2) + math.pow(11, 2))
+        rh_rf_palm = math.sqrt(math.pow(95, 2) + math.pow(11, 2))
+        rh_lf_palm = math.sqrt(math.pow(86.6, 2) + math.pow(33, 2))
         rh_palm = np.array([rh_tf_palm, rh_ff_palm, rh_mf_palm, rh_rf_palm, rh_lf_palm])
 
         rh_tf_pip_mcp = 38
@@ -261,54 +262,19 @@ def show_hand(points,type='human'):
 
 
 if __name__ == '__main__':
-    moveit_commander.roscpp_initialize(sys.argv)
-    rospy.init_node('shadow_human_dataset')
-    mgi_tf = moveit_commander.MoveGroupCommander("rh_thumb")
-    mgi_ff = moveit_commander.MoveGroupCommander("rh_first_finger")
-    mgi_mf = moveit_commander.MoveGroupCommander("rh_middle_finger")
-    mgi_rf = moveit_commander.MoveGroupCommander("rh_ring_finger")
-    mgi_lf = moveit_commander.MoveGroupCommander("rh_little_finger")
-    mgi_tf.set_pose_reference_frame("rh_wrist")
-    mgi_ff.set_pose_reference_frame("rh_wrist")
-    mgi_mf.set_pose_reference_frame("rh_wrist")
-    mgi_rf.set_pose_reference_frame("rh_wrist")
-    mgi_lf.set_pose_reference_frame("rh_wrist")
-    # mgi_tf.set_planning_time(10)
-    # mgi_ff.set_planning_time(10)
-    # mgi_mf.set_planning_time(10)
-    # mgi_rf.set_planning_time(10)
-    # mgi_lf.set_planning_time(10)
-
-    batch_size = 5
-    base_path= "./data/"
-    map_loader = Map_Loader(base_path)
-    for i in range(0, len(map_loader.framelist), batch_size):
-        keys, local_p, shadow_p = map_loader.map(i, batch_size)
-        # from IPython import embed;
-        # embed()
-        for n in range(batch_size):
-            key = keys[n]
-            print(key)
-            local_p = np.asarray(local_p)
-            shadow_p = np.asarray(shadow_p)
-            show_hand(shadow_p[n], 'shadow')
-            show_hand(local_p[n], 'human')
-            mlab.show()
-
-            mgi_tf.set_position_target(key[0])
-            mgi_ff.set_position_target(key[1])
-            mgi_mf.set_position_target(key[2])
-            mgi_rf.set_position_target(key[3])
-            mgi_lf.set_position_target(key[4])
-
-            mgi_ff.go()
-            mgi_mf.go()
-            mgi_rf.go()
-            mgi_lf.go()
-            mgi_tf.go()
-            rospy.sleep(2)
-
-
-
-
-
+        batch_size = 5
+        base_path= "./data/trainning/"
+        map_loader = Map_Loader(base_path)
+        for i in range(0, len(map_loader.framelist), batch_size):
+            keys, local_p, shadow_p = map_loader.map(i, batch_size)
+            # from IPython import embed;
+            # embed()
+            for n in range(batch_size):
+                key = keys[n]
+                print(key)
+                local_p = np.asarray(local_p)
+                shadow_p = np.asarray(shadow_p)
+                show_hand(shadow_p[n], 'shadow')
+                show_hand(local_p[n], 'human')
+                mlab.savefig(filename= "./data/handshape/" + str(i) +'.png')
+                # mlab.show()
