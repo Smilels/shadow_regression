@@ -24,7 +24,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 bool take_photo = false;
+bool take_rgb = false;
 int image_count = 0;
+
 void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 {
   if (take_photo)
@@ -38,8 +40,8 @@ void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
          cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::TYPE_32FC1);
          take_photo = false;
          cv::Mat image = cv_ptr->image;
-    	 image.convertTo(image,CV_16UC1, 1000);
-    	 cv::imwrite("/home/sli/shadow_ws/imitation/src/shadow_regression/data/depth_shadow/" + std::to_string(image_count ) + ".jpg", image);
+    	 image.convertTo(image, CV_16UC1, 1000);
+    	 cv::imwrite("/home/sli/shadow_ws/imitation/src/shadow_regression/data/depth_shadow/" + std::to_string(image_count ) + ".png", image);
       }
     }
     catch (cv_bridge::Exception& e)
@@ -52,7 +54,7 @@ void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 
 void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 {
-  if (take_photo)
+  if (take_rgb)
   {
     cv_bridge::CvImagePtr cv_ptr;
     try
@@ -61,9 +63,8 @@ void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
       if (image_data->encoding == "rgb8")
       {
          cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
-         take_photo = false;
+         take_rgb = false;
          cv::Mat image = cv_ptr->image;
-    	 image.convertTo(image,CV_16UC1, 1000);
     	 cv::imwrite("/home/sli/shadow_ws/imitation/src/shadow_regression/data/rgb_shadow/" + std::to_string(image_count ) + ".jpg", image);
       }
     }
@@ -285,6 +286,7 @@ int main(int argc, char** argv)
 	    }
 
             take_photo = true;
+			take_rgb = true;
             ROS_WARN_STREAM("take photo now");
             ros::Duration(3).sleep();
         }
