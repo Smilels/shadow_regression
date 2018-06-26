@@ -51,33 +51,33 @@ int main(int argc, char** argv)
     auto* mf_goal = new bio_ik::PositionGoal();
     auto* rf_goal = new bio_ik::PositionGoal();
     auto* lf_goal = new bio_ik::PositionGoal();
-    auto* th_pip_goal = new bio_ik::PositionGoal();
-    auto* ff_pip_goal = new bio_ik::PositionGoal();
-    auto* mf_pip_goal = new bio_ik::PositionGoal();
-    auto* rf_pip_goal = new bio_ik::PositionGoal();
-    auto* lf_pip_goal = new bio_ik::PositionGoal();
+    auto* th_middle_goal = new bio_ik::PositionGoal();
+    auto* ff_middle_goal = new bio_ik::PositionGoal();
+    auto* mf_middle_goal = new bio_ik::PositionGoal();
+    auto* rf_middle_goal = new bio_ik::PositionGoal();
+    auto* lf_middle_goal = new bio_ik::PositionGoal();
 
     th_goal->setLinkName("rh_thtip");
     ff_goal->setLinkName("rh_fftip");
     mf_goal->setLinkName("rh_mftip");
     rf_goal->setLinkName("rh_rftip");
     lf_goal->setLinkName("rh_lftip");
-    th_pip_goal->setLinkName("rh_thmiddle");
-    ff_pip_goal->setLinkName("rh_ffmiddle");
-    mf_pip_goal->setLinkName("rh_mfmiddle");
-    rf_pip_goal->setLinkName("rh_rfmiddle");
-    lf_pip_goal->setLinkName("rh_lfmiddle");
+    th_middle_goal->setLinkName("rh_thmiddle");
+    ff_middle_goal->setLinkName("rh_ffmiddle");
+    mf_middle_goal->setLinkName("rh_mfmiddle");
+    rf_middle_goal->setLinkName("rh_rfmiddle");
+    lf_middle_goal->setLinkName("rh_lfmiddle");
 
     th_goal->setWeight(1);
     ff_goal->setWeight(1);
     mf_goal->setWeight(1);
     rf_goal->setWeight(1);
     lf_goal->setWeight(1);
-    th_pip_goal->setWeight(0.2);
-    ff_pip_goal->setWeight(0.2);
-    mf_pip_goal->setWeight(0.2);
-    rf_pip_goal->setWeight(0.2);
-    lf_pip_goal->setWeight(0.2);
+    th_middle_goal->setWeight(0.2);
+    ff_middle_goal->setWeight(0.2);
+    mf_middle_goal->setWeight(0.2);
+    rf_middle_goal->setWeight(0.2);
+    lf_middle_goal->setWeight(0.2);
 
 
     tf::Vector3 th_position;
@@ -85,13 +85,13 @@ int main(int argc, char** argv)
     tf::Vector3 mf_position;
     tf::Vector3 rf_position;
     tf::Vector3 lf_position;
-    tf::Vector3 th_pip_position;
-    tf::Vector3 ff_pip_position;
-    tf::Vector3 mf_pip_position;
-    tf::Vector3 rf_pip_position;
-    tf::Vector3 lf_pip_position;
+    tf::Vector3 th_middle_position;
+    tf::Vector3 ff_middle_position;
+    tf::Vector3 mf_middle_position;
+    tf::Vector3 rf_middle_position;
+    tf::Vector3 lf_middle_position;
 
-    std::ifstream mapfile("/home/sli/shadow_ws/imitation/src/shadow_regression/data/trainning/human_robot_mapdata_pip2.csv");
+    std::ifstream mapfile("/home/sli/pr2_ws/src/shadow_regression/data/trainning/human_robot_mapdata_pip_tams.csv");
     std::string line, item;
     int i=0;
     while(std::getline(mapfile, line)){
@@ -113,10 +113,10 @@ int main(int argc, char** argv)
                 // cv::normalize(depth_image, dispImage, 0, 1, cv::NORM_MINMAX, CV_32F);
                 // cv::imshow("depth_image", dispImage);
 
-                hand_shape = cv::imread("/home/sli/shadow_ws/imitation/src/shadow_regression/data/handshape/" + std::to_string(i)+ ".png"); // Read the file
+                hand_shape = cv::imread("/home/sli/pr2_ws/src/shadow_regression/data/tams_handshape/" + std::to_string(i)+ ".png"); // Read the file
                 cv::resize(hand_shape, hand_shape, cv::Size(640, 480));
                 cv::imshow("shape", hand_shape);
-                cv::waitKey(6); // Wait for a keystroke in the window
+                cv::waitKey(5); // Wait for a keystroke in the window
                 continue;
             }
             csvItem.push_back(std::stof(item));
@@ -124,40 +124,40 @@ int main(int argc, char** argv)
         }
 
         // the constant transform.getorigin between /world and /rh_wrist
-        tf::Vector3 transform_world_wrist(0.0, -0.01, 0.213+0.05);//0.034
+        tf::Vector3 transform_world_wrist(0.0, -0.01, 0.213+0.04);//0.034
         th_position = tf::Vector3(csvItem[0], csvItem[1], csvItem[2]) + transform_world_wrist;
         ff_position = tf::Vector3(csvItem[3], csvItem[4], csvItem[5]) + transform_world_wrist;
         mf_position = tf::Vector3(csvItem[6], csvItem[7], csvItem[8]) + transform_world_wrist;
         rf_position = tf::Vector3(csvItem[9], csvItem[10], csvItem[11]) + transform_world_wrist;
         lf_position = tf::Vector3(csvItem[12], csvItem[13], csvItem[14]) + transform_world_wrist;
 
-        th_pip_position = tf::Vector3(csvItem[15], csvItem[16], csvItem[17]) + transform_world_wrist;
-        ff_pip_position = tf::Vector3(csvItem[18], csvItem[19], csvItem[20]) + transform_world_wrist;
-        mf_pip_position = tf::Vector3(csvItem[21], csvItem[22], csvItem[23]) + transform_world_wrist;
-        rf_pip_position = tf::Vector3(csvItem[24], csvItem[25], csvItem[26]) + transform_world_wrist;
-        lf_pip_position = tf::Vector3(csvItem[27], csvItem[28], csvItem[29]) + transform_world_wrist;
+        th_middle_position = tf::Vector3(csvItem[15], csvItem[16], csvItem[17]) + transform_world_wrist;
+        ff_middle_position = tf::Vector3(csvItem[18], csvItem[19], csvItem[20]) + transform_world_wrist;
+        mf_middle_position = tf::Vector3(csvItem[21], csvItem[22], csvItem[23]) + transform_world_wrist;
+        rf_middle_position = tf::Vector3(csvItem[24], csvItem[25], csvItem[26]) + transform_world_wrist;
+        lf_middle_position = tf::Vector3(csvItem[27], csvItem[28], csvItem[29]) + transform_world_wrist;
 
         th_goal->setPosition(th_position);
         ff_goal->setPosition(ff_position);
         mf_goal->setPosition(mf_position);
         rf_goal->setPosition(rf_position);
         lf_goal->setPosition(lf_position);
-        th_pip_goal->setPosition(th_pip_position);
-        ff_pip_goal->setPosition(ff_pip_position);
-        mf_pip_goal->setPosition(mf_pip_position);
-        rf_pip_goal->setPosition(rf_pip_position);
-        lf_pip_goal->setPosition(lf_pip_position);
+        th_middle_goal->setPosition(th_middle_position);
+        ff_middle_goal->setPosition(ff_middle_position);
+        mf_middle_goal->setPosition(mf_middle_position);
+        rf_middle_goal->setPosition(rf_middle_position);
+        lf_middle_goal->setPosition(lf_middle_position);
 
         ik_options.goals.emplace_back(th_goal);
         ik_options.goals.emplace_back(ff_goal);
         ik_options.goals.emplace_back(mf_goal);
         ik_options.goals.emplace_back(rf_goal);
         ik_options.goals.emplace_back(lf_goal);
-        ik_options.goals.emplace_back(th_pip_goal);
-        ik_options.goals.emplace_back(ff_pip_goal);
-        ik_options.goals.emplace_back(mf_pip_goal);
-        ik_options.goals.emplace_back(rf_pip_goal);
-        ik_options.goals.emplace_back(lf_pip_goal);
+        ik_options.goals.emplace_back(th_middle_goal);
+        ik_options.goals.emplace_back(ff_middle_goal);
+        ik_options.goals.emplace_back(mf_middle_goal);
+        ik_options.goals.emplace_back(rf_middle_goal);
+        ik_options.goals.emplace_back(lf_middle_goal);
 
         // set ik solver
         bool found_ik =robot_state.setFromIK(
