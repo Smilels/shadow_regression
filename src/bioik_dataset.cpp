@@ -41,7 +41,7 @@ void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
          take_photo = false;
          cv::Mat image = cv_ptr->image;
     	 image.convertTo(image, CV_16UC1, 1000);
-    	 cv::imwrite("/home/sli/shadow_ws/imitation/src/shadow_regression/data/depth_shadow/" + std::to_string(image_count ) + ".png", image);
+    	 cv::imwrite("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/depth_shadow/" + std::to_string(image_count ) + ".png", image);
       }
     }
     catch (cv_bridge::Exception& e)
@@ -65,7 +65,7 @@ void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
          cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
          take_rgb = false;
          cv::Mat image = cv_ptr->image;
-    	 cv::imwrite("/home/sli/shadow_ws/imitation/src/shadow_regression/data/rgb_shadow/" + std::to_string(image_count ) + ".jpg", image);
+    	 cv::imwrite("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/rgb_shadow/" + std::to_string(image_count ) + ".jpg", image);
       }
     }
     catch (cv_bridge::Exception& e)
@@ -165,7 +165,7 @@ int main(int argc, char** argv)
     tf::Vector3 rf_dip_position;
     tf::Vector3 lf_dip_position;
 
-    std::ifstream mapfile("/home/sli/shadow_ws/imitation/src/shadow_regression/data/trainning/human_robot_mapdata_pip2.csv");
+    std::ifstream mapfile("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/trainning/human_robot_mapdata_pip2.csv");
     std::string line, item;
     while(std::getline(mapfile, line)){
         mgi.setNamedTarget("open");
@@ -274,15 +274,17 @@ int main(int argc, char** argv)
             mgi.setJointValueTarget(joint_values);
 	    if (!(static_cast<bool>(mgi.plan(shadow_plan))))
 	    {
-		ROS_WARN_STREAM("Failed to plan pose '" << image_count << "'");
+		    std::cout<< "Failed to plan pose '" << image_count << std::endl;
+            continue;
 	    }
 
 	    if(!(static_cast<bool>(mgi.execute(shadow_plan)))){
-		ROS_WARN_STREAM("Failed to execute pose '" << image_count<< "'");
+	        std::cout << "Failed to execute pose '" << image_count<< std::endl;
+            continue;
 	    }
 	    else
 	    {
-	        ROS_INFO_STREAM(" moved to " << image_count);
+            std::cout << " moved to " << image_count << std::endl;
 	    }
 
             take_photo = true;
