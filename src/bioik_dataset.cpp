@@ -24,25 +24,54 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 bool take_photo = false;
-
+int image_count = 0;
 void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 {
   if (take_photo)
   {
-    static int count = 0;
-		count++;
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
-      cv_ptr = cv_bridge::toCvCopy(image_data, "passthrough");
+      //cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
+      if (image_data->encoding == "32FC1")
+      {
+         cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::TYPE_32FC1);
+         take_photo = false;
+         cv::Mat image = cv_ptr->image;
+    	 image.convertTo(image,CV_16UC1, 1000);
+    	 cv::imwrite("/home/sli/shadow_ws/imitation/src/shadow_regression/data/depth_shadow/" + std::to_string(image_count ) + ".jpg", image);
+      }
     }
     catch (cv_bridge::Exception& e)
     {
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
     }
-    cv::imwrite( "/home/sli/shadow_ws/imitation/src/shadow_regression/data/depth_shadow/" + std::to_string( count ) + ".jpg", cv_ptr->image );
-    take_photo = false;
+  }
+}
+
+void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
+{
+  if (take_photo)
+  {
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+      //cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
+      if (image_data->encoding == "rgb8")
+      {
+         cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
+         take_photo = false;
+         cv::Mat image = cv_ptr->image;
+    	 image.convertTo(image,CV_16UC1, 1000);
+    	 cv::imwrite("/home/sli/shadow_ws/imitation/src/shadow_regression/data/rgb_shadow/" + std::to_string(image_count ) + ".jpg", image);
+      }
+    }
+    catch (cv_bridge::Exception& e)
+    {
+      ROS_ERROR("cv_bridge exception: %s", e.what());
+      return;
+    }
   }
 }
 
@@ -52,7 +81,8 @@ int main(int argc, char** argv)
     ros::NodeHandle n;
     ros::AsyncSpinner spinner(1);
     spinner.start();
-    ros::Subscriber sub = n.subscribe("/camera/depth/image_raw", 1000, depth_Callback);
+    ros::Subscriber sub_depth = n.subscribe("/camera/depth/image_raw", 1, depth_Callback);
+    ros::Subscriber sub_rgb = n.subscribe("/camera/rgb/image_raw", 1, rgb_Callback);
 
     std::string group_name = "right_hand";
     moveit::planning_interface::MoveGroupInterface mgi(group_name);
@@ -136,14 +166,13 @@ int main(int argc, char** argv)
 
     std::ifstream mapfile("/home/sli/shadow_ws/imitation/src/shadow_regression/data/trainning/human_robot_mapdata_pip2.csv");
     std::string line, item;
-    int i=0;
     while(std::getline(mapfile, line)){
         mgi.setNamedTarget("open");
         mgi.move();
         ros::Duration(1).sleep();
         std::istringstream myline(line);
         std::vector<double> csvItem;
-        i++;
+        image_count++;
         while(std::getline(myline, item, ','))
         {
             if (item[0]=='i')
@@ -236,15 +265,27 @@ int main(int argc, char** argv)
 
         // move to the solution position
         std::vector<double> joint_values;
+        moveit::planning_interface::MoveGroupInterface::Plan shadow_plan;
         if (found_ik)
         {
             robot_state.copyJointGroupPositions(joint_model_group, joint_values);
             // std::cout<< joint_values[1] << joint_values[2] << joint_values[3] <<std::endl;
             mgi.setJointValueTarget(joint_values);
-            if (!static_cast<bool>(mgi.move()))
-                ROS_WARN_STREAM("Failed to execute state");
-                continue;
-                take_photo = true;
+	    if (!(static_cast<bool>(mgi.plan(shadow_plan))))
+	    {
+		ROS_WARN_STREAM("Failed to plan pose '" << image_count << "'");
+	    }
+
+	    if(!(static_cast<bool>(mgi.execute(shadow_plan)))){
+		ROS_WARN_STREAM("Failed to execute pose '" << image_count<< "'");
+	    }
+	    else
+	    {
+	        ROS_INFO_STREAM(" moved to " << image_count);
+	    }
+
+            take_photo = true;
+            ROS_WARN_STREAM("take photo now");
             ros::Duration(3).sleep();
         }
         else
