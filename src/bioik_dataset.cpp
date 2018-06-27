@@ -65,7 +65,7 @@ void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
          cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
          take_rgb = false;
          cv::Mat image = cv_ptr->image;
-    	 cv::imwrite("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/rgb_shadow/" + std::to_string(image_count ) + ".jpg", image);
+    	 cv::imwrite("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/rgb_shadow/" + std::to_string(image_count ) + ".png", image);
       }
     }
     catch (cv_bridge::Exception& e)
@@ -93,84 +93,84 @@ int main(int argc, char** argv)
     auto robot_model = mgi.getCurrentState()->getRobotModel();
     auto joint_model_group = robot_model->getJointModelGroup(group_name);
     moveit::core::RobotState robot_state(robot_model);
-
-    // track goals using bio ik
-    std::vector<robot_state::RobotState> states;
-    bio_ik::BioIKKinematicsQueryOptions ik_options;
-    ik_options.replace = true;
-    ik_options.return_approximate_solution = true;
+    
     double timeout = 0.2;
-
-    auto* th_goal = new bio_ik::PositionGoal();
-    auto* ff_goal = new bio_ik::PositionGoal();
-    auto* mf_goal = new bio_ik::PositionGoal();
-    auto* rf_goal = new bio_ik::PositionGoal();
-    auto* lf_goal = new bio_ik::PositionGoal();
-    auto* th_pip_goal = new bio_ik::PositionGoal();
-    auto* ff_pip_goal = new bio_ik::PositionGoal();
-    auto* mf_pip_goal = new bio_ik::PositionGoal();
-    auto* rf_pip_goal = new bio_ik::PositionGoal();
-    auto* lf_pip_goal = new bio_ik::PositionGoal();
-    auto* th_dip_goal = new bio_ik::PositionGoal();
-    auto* ff_dip_goal = new bio_ik::PositionGoal();
-    auto* mf_dip_goal = new bio_ik::PositionGoal();
-    auto* rf_dip_goal = new bio_ik::PositionGoal();
-    auto* lf_dip_goal = new bio_ik::PositionGoal();
-
-    th_goal->setLinkName("rh_thtip");
-    ff_goal->setLinkName("rh_fftip");
-    mf_goal->setLinkName("rh_mftip");
-    rf_goal->setLinkName("rh_rftip");
-    lf_goal->setLinkName("rh_lftip");
-    th_pip_goal->setLinkName("rh_thmiddle");
-    ff_pip_goal->setLinkName("rh_ffmiddle");
-    mf_pip_goal->setLinkName("rh_mfmiddle");
-    rf_pip_goal->setLinkName("rh_rfmiddle");
-    lf_pip_goal->setLinkName("rh_lfmiddle");
-    th_dip_goal->setLinkName("rh_thdistal");
-    ff_dip_goal->setLinkName("rh_ffdistal");
-    mf_dip_goal->setLinkName("rh_mfdistal");
-    rf_dip_goal->setLinkName("rh_rfdistal");
-    lf_dip_goal->setLinkName("rh_lfdistal");
-
-    th_goal->setWeight(1);
-    ff_goal->setWeight(1);
-    mf_goal->setWeight(1);
-    rf_goal->setWeight(1);
-    lf_goal->setWeight(1);
-    th_pip_goal->setWeight(0.2);
-    ff_pip_goal->setWeight(0.2);
-    mf_pip_goal->setWeight(0.2);
-    rf_pip_goal->setWeight(0.2);
-    lf_pip_goal->setWeight(0.2);
-    th_dip_goal->setWeight(0.2);
-    ff_dip_goal->setWeight(0.1);
-    mf_dip_goal->setWeight(0.1);
-    rf_dip_goal->setWeight(0.1);
-    lf_dip_goal->setWeight(0.1);
-
-    tf::Vector3 th_position;
-    tf::Vector3 ff_position;
-    tf::Vector3 mf_position;
-    tf::Vector3 rf_position;
-    tf::Vector3 lf_position;
-    tf::Vector3 th_pip_position;
-    tf::Vector3 ff_pip_position;
-    tf::Vector3 mf_pip_position;
-    tf::Vector3 rf_pip_position;
-    tf::Vector3 lf_pip_position;
-    tf::Vector3 th_dip_position;
-    tf::Vector3 ff_dip_position;
-    tf::Vector3 mf_dip_position;
-    tf::Vector3 rf_dip_position;
-    tf::Vector3 lf_dip_position;
-
-    std::ifstream mapfile("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/trainning/human_robot_mapdata_pip2.csv");
+    
+    std::ifstream mapfile("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/training/human_robot_mapdata_whole.csv");
     std::string line, item;
     while(std::getline(mapfile, line)){
-        mgi.setNamedTarget("open");
-        mgi.move();
-        ros::Duration(1).sleep();
+        // mgi.setNamedTarget("open");
+        // mgi.move();
+        
+        // track goals using bio ik
+        bio_ik::BioIKKinematicsQueryOptions ik_options;
+        ik_options.replace = true;
+        ik_options.return_approximate_solution = true;   
+
+        auto* th_goal = new bio_ik::PositionGoal();
+        auto* ff_goal = new bio_ik::PositionGoal();
+        auto* mf_goal = new bio_ik::PositionGoal();
+        auto* rf_goal = new bio_ik::PositionGoal();
+        auto* lf_goal = new bio_ik::PositionGoal();
+        auto* th_pip_goal = new bio_ik::PositionGoal();
+        auto* ff_pip_goal = new bio_ik::PositionGoal();
+        auto* mf_pip_goal = new bio_ik::PositionGoal();
+        auto* rf_pip_goal = new bio_ik::PositionGoal();
+        auto* lf_pip_goal = new bio_ik::PositionGoal();
+        auto* th_dip_goal = new bio_ik::PositionGoal();
+        auto* ff_dip_goal = new bio_ik::PositionGoal();
+        auto* mf_dip_goal = new bio_ik::PositionGoal();
+        auto* rf_dip_goal = new bio_ik::PositionGoal();
+        auto* lf_dip_goal = new bio_ik::PositionGoal();
+
+        th_goal->setLinkName("rh_thtip");
+        ff_goal->setLinkName("rh_fftip");
+        mf_goal->setLinkName("rh_mftip");
+        rf_goal->setLinkName("rh_rftip");
+        lf_goal->setLinkName("rh_lftip");
+        th_pip_goal->setLinkName("rh_thmiddle");
+        ff_pip_goal->setLinkName("rh_ffmiddle");
+        mf_pip_goal->setLinkName("rh_mfmiddle");
+        rf_pip_goal->setLinkName("rh_rfmiddle");
+        lf_pip_goal->setLinkName("rh_lfmiddle");
+        th_dip_goal->setLinkName("rh_thdistal");
+        ff_dip_goal->setLinkName("rh_ffdistal");
+        mf_dip_goal->setLinkName("rh_mfdistal");
+        rf_dip_goal->setLinkName("rh_rfdistal");
+        lf_dip_goal->setLinkName("rh_lfdistal");
+
+        th_goal->setWeight(1);
+        ff_goal->setWeight(1);
+        mf_goal->setWeight(1);
+        rf_goal->setWeight(1);
+        lf_goal->setWeight(1);
+        th_pip_goal->setWeight(0.2);
+        ff_pip_goal->setWeight(0.2);
+        mf_pip_goal->setWeight(0.2);
+        rf_pip_goal->setWeight(0.2);
+        lf_pip_goal->setWeight(0.2);
+        th_dip_goal->setWeight(0.2);
+        ff_dip_goal->setWeight(0.1);
+        mf_dip_goal->setWeight(0.1);
+        rf_dip_goal->setWeight(0.1);
+        lf_dip_goal->setWeight(0.1);
+
+        tf::Vector3 th_position;
+        tf::Vector3 ff_position;
+        tf::Vector3 mf_position;
+        tf::Vector3 rf_position;
+        tf::Vector3 lf_position;
+        tf::Vector3 th_pip_position;
+        tf::Vector3 ff_pip_position;
+        tf::Vector3 mf_pip_position;
+        tf::Vector3 rf_pip_position;
+        tf::Vector3 lf_pip_position;
+        tf::Vector3 th_dip_position;
+        tf::Vector3 ff_dip_position;
+        tf::Vector3 mf_dip_position;
+        tf::Vector3 rf_dip_position;
+        tf::Vector3 lf_dip_position;
+
         std::istringstream myline(line);
         std::vector<double> csvItem;
         image_count++;
@@ -187,7 +187,8 @@ int main(int argc, char** argv)
                 // cv::imshow("depth_image", dispImage);
 
                 // hand_shape = cv::imread("/home/sli/shadow_ws/imitation/src/shadow_regression/data/handshape/" + std::to_string(i)+ ".png"); // Read the file
-                // cv::resize(hand_shape, hand_shape, cv::Size(640, 480));
+                // cv::resi:w
+                // ze(hand_shape, hand_shape, cv::Size(640, 480));
                 // cv::imshow("shape", hand_shape);
                 // cv::waitKey(3); // Wait for a keystroke in the window
                 continue;
@@ -195,12 +196,12 @@ int main(int argc, char** argv)
             csvItem.push_back(std::stof(item));
             // std::cout<< csvItem.back()<<std::endl;
         }
-        // std::cout<< "print the position value pass to bioik: "<<std::endl;
-        // std::cout<< csvItem[0]<< csvItem[1]<< csvItem[2] <<std::endl;
-        // std::cout<< csvItem[3]<< csvItem[4]<< csvItem[5] <<std::endl;
-        // std::cout<< csvItem[6]<<csvItem[7]<< csvItem[8] <<std::endl;
-        // std::cout<< csvItem[9]<< csvItem[10]<< csvItem[11] <<std::endl;
-        // std::cout<< csvItem[42]<< csvItem[43]<< csvItem[44] <<std::endl;
+       // std::cout<< "print the position value pass to bioik: "<<std::endl;
+       // std::cout<< csvItem[0]<< csvItem[1]<< csvItem[2] <<std::endl;
+       // std::cout<< csvItem[3]<< csvItem[4]<< csvItem[5] <<std::endl;
+       // std::cout<< csvItem[6]<<csvItem[7]<< csvItem[8] <<std::endl;
+       // std::cout<< csvItem[9]<< csvItem[10]<< csvItem[11] <<std::endl;
+       // std::cout<< csvItem[42]<< csvItem[43]<< csvItem[44] <<std::endl;
 
         // the constant transform.getorigin between /world and /rh_wrist
         tf::Vector3 transform_world_wrist(0.0, -0.01, 0.213+0.05);//0.034
@@ -254,6 +255,7 @@ int main(int argc, char** argv)
         ik_options.goals.emplace_back(rf_dip_goal);
         ik_options.goals.emplace_back(lf_dip_goal);
 
+        robot_state = *mgi.getCurrentState();
         // set ik solver
         bool found_ik =robot_state.setFromIK(
                           joint_model_group,           // active Shadow joints
@@ -264,38 +266,41 @@ int main(int argc, char** argv)
                           ik_options       // five fingertip position goals
                         );
 
+        // can not move robot when taking photoes.
+        while (take_rgb || take_photo)
+        {
+            std::cout << "taking photoes, please wait" << std::endl;
+        }
+
         // move to the solution position
         std::vector<double> joint_values;
         moveit::planning_interface::MoveGroupInterface::Plan shadow_plan;
         if (found_ik)
         {
             robot_state.copyJointGroupPositions(joint_model_group, joint_values);
-            // std::cout<< joint_values[1] << joint_values[2] << joint_values[3] <<std::endl;
+            // std::cout<< joint_values[1] << joint_values[2] << joint_values[3] <<joint_values[4]<<joint_values[0]<<std::endl;
             mgi.setJointValueTarget(joint_values);
-	    if (!(static_cast<bool>(mgi.plan(shadow_plan))))
-	    {
-		    std::cout<< "Failed to plan pose '" << image_count << std::endl;
-            continue;
-	    }
+            if (!(static_cast<bool>(mgi.plan(shadow_plan))))
+            {
+                std::cout<< "Failed to plan pose '" << image_count << std::endl;
+                continue;
+            }
 
-	    if(!(static_cast<bool>(mgi.execute(shadow_plan)))){
-	        std::cout << "Failed to execute pose '" << image_count<< std::endl;
-            continue;
-	    }
-	    else
-	    {
-            std::cout << " moved to " << image_count << std::endl;
-	    }
+            if(!(static_cast<bool>(mgi.execute(shadow_plan))))
+            {
+                std::cout << "Failed to execute pose '" << image_count<< std::endl;
+                continue;
+            }
+            else
+                std::cout << " moved to " << image_count << std::endl;
 
+            ros::Duration(1).sleep();
             take_photo = true;
-			take_rgb = true;
+            take_rgb = true;
             ROS_WARN_STREAM("take photo now");
-            ros::Duration(3).sleep();
         }
         else
-        {
             ROS_INFO("Did not find IK solution");
-        }
         // cv::destroyAllWindows();
         // cv::waitKey(1);
     }
