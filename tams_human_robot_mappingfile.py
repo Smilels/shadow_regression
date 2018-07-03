@@ -23,7 +23,7 @@ class Map_Loader(object):
         self.shadow = self.tams_shadow_model()
 
     def map(self, start):
-        rh_palm, rh_middle_pip, rh_tip_middle = self.shadow
+        rh_palm, rh_middle_pip, rh_tip_middle, rh_dummy_middle= self.shadow
         # the joint order is
         # [Wrist, TMCP, IMCP, MMCP, RMCP, PMCP, TPIP,
         # TDIP, TTIP, IPIP, IDIP, ITIP, MPIP, MDIP, MTIP, RPIP, RDIP, RTIP, PPIP, PDIP, PTIP]
@@ -55,24 +55,31 @@ class Map_Loader(object):
         hh_palm = np.linalg.norm(local_palm, axis=1)
 
         tf_pip_mcp = local_points[6] - local_points[1]
+        tf_dip_pip = local_points[7] - local_points[6]
         tf_tip_pip = local_points[8] - local_points[6]
 
         ff_pip_mcp = local_points[9] - local_points[2]
+        ff_dip_pip = local_points[10] - local_points[9]
         ff_tip_pip = local_points[11] - local_points[9]
 
         mf_pip_mcp = local_points[12] - local_points[3]
+        mf_dip_pip = local_points[13] - local_points[12]
         mf_tip_pip = local_points[14] - local_points[12]
 
         rf_pip_mcp = local_points[15] - local_points[4]
+        rf_dip_pip = local_points[16] - local_points[15]
         rf_tip_pip = local_points[17] - local_points[15]
 
         lf_pip_mcp = local_points[18] - local_points[5]
+        lf_dip_pip = local_points[19] - local_points[18]
         lf_tip_pip = local_points[20] - local_points[18]
 
         pip_mcp = np.array([tf_pip_mcp, ff_pip_mcp, mf_pip_mcp, rf_pip_mcp, lf_pip_mcp])
         tip_pip = np.array([tf_tip_pip, ff_tip_pip, mf_tip_pip, rf_tip_pip, lf_tip_pip])
+        dip_pip = np.array([tf_dip_pip, ff_dip_pip, mf_dip_pip, rf_dip_pip, lf_dip_pip])
         hh_pip_mcp = np.linalg.norm(pip_mcp, axis=1)
         hh_tip_pip = np.linalg.norm(tip_pip, axis=1)
+        # hh_dip_pip = np.linalg.norm(dip_pip, axis=1)
 
         # hh_len = hh_palm + hh_pip_mcp + hh_dip_pip + hh_tip_dip
 
@@ -86,6 +93,9 @@ class Map_Loader(object):
         coe_tip_pip = rh_tip_middle / hh_tip_pip
         rh_tip_pip_key = np.multiply(coe_tip_pip.reshape(-1, 1), tip_pip) + rh_pip_mcp_key
 
+        # coe_dip_pip = rh_dummy_middle / hh_dip_pip
+        # rh_dip_pip_key = np.multiply(coe_dip_pip.reshape(-1, 1), dip_pip) + rh_pip_mcp_key
+
         shadow_points = np.vstack([np.array([0, 0, 0]), rh_wrist_mcp_key,
                                     rh_pip_mcp_key[0],  rh_tip_pip_key[0], rh_tip_pip_key[0],
                                     rh_pip_mcp_key[1],  rh_tip_pip_key[1], rh_tip_pip_key[1],
@@ -95,8 +105,10 @@ class Map_Loader(object):
 
         tip_keys = rh_tip_pip_key/1000
         pip_keys = rh_pip_mcp_key/1000
+        # mcp_keys = rh_wrist_mcp_key/1000
+        # dip_keys = rh_dip_pip_key/1000
         # from IPython import embed;embed()
-        return tip_keys, pip_keys, frame, local_points, shadow_points
+        return tip_keys, pip_keys, pip_mcp, dip_pip, frame, local_points, shadow_points
 
     def tams_shadow_model(self):
         # shadow hand length
@@ -108,25 +120,26 @@ class Map_Loader(object):
         rh_palm = np.array([rh_tf_palm, rh_ff_palm, rh_mf_palm, rh_rf_palm, rh_lf_palm])
 
         rh_tf_middle_pip = 38
-        rh_tf_tip_middle = math.sqrt(math.pow(52, 2) + math.pow(4, 2))
+        rh_tf_tip_middle = 20 + math.sqrt(math.pow(32, 2) + math.pow(4, 2))
 
         rh_ff_middle_pip = 45
-        rh_ff_tip_middle = math.sqrt(math.pow(49, 2) + math.pow(4, 2))
+        rh_ff_tip_middle = 20 + math.sqrt(math.pow(29, 2) + math.pow(4, 2))
 
         rh_mf_middle_pip = 45
-        rh_mf_tip_middle = math.sqrt(math.pow(49, 2) + math.pow(4, 2))
+        rh_mf_tip_middle = 20 + math.sqrt(math.pow(29, 2) + math.pow(4, 2))
 
         rh_rf_middle_pip = 45
-        rh_rf_tip_middle = math.sqrt(math.pow(49, 2) + math.pow(4, 2))
+        rh_rf_tip_middle = 20 + math.sqrt(math.pow(29, 2) + math.pow(4, 2))
 
         rh_lf_middle_pip = 45
-        rh_lf_tip_middle = math.sqrt(math.pow(49, 2) + math.pow(4, 2))
+        rh_lf_tip_middle = 20 + math.sqrt(math.pow(29, 2) + math.pow(4, 2))
 
         rh_middle_pip = np.array([rh_tf_middle_pip, rh_ff_middle_pip, rh_mf_middle_pip, rh_rf_middle_pip, rh_lf_middle_pip])
         rh_tip_middle = np.array([rh_tf_tip_middle, rh_ff_tip_middle, rh_mf_tip_middle, rh_rf_tip_middle, rh_lf_tip_middle])
+        rh_dummy_middle = np.array([20, 20, 20, 20, 20])
 
         # rh_len = rh_palm + rh_middle_pip + rh_tip_middle
-        return [rh_palm, rh_middle_pip, rh_tip_middle]
+        return [rh_palm, rh_middle_pip, rh_tip_middle, rh_dummy_middle]
 
 
 def show_line(un1, un2, color='g', scale_factor=1):
@@ -248,13 +261,18 @@ if __name__ == '__main__':
     writer = csv.writer(csvSum)
     print(len(map_loader.framelist))
     for i in range(0, len(map_loader.framelist)):
-        tip_keys, pip_keys, frame, local_points, shadow_points = map_loader.map(i)
+        tip_keys, pip_keys, pip_mcp, dip_pip, frame, local_points, shadow_points = map_loader.map(i)
         # save key
         result = [frame, tip_keys[0][0], tip_keys[0][1], tip_keys[0][2], tip_keys[1][0], tip_keys[1][1], tip_keys[1][2],
         tip_keys[2][0], tip_keys[2][1], tip_keys[2][2], tip_keys[3][0], tip_keys[3][1], tip_keys[3][2],
         tip_keys[4][0], tip_keys[4][1], tip_keys[4][2], pip_keys[0][0], pip_keys[0][1], pip_keys[0][2],
         pip_keys[1][0], pip_keys[1][1], pip_keys[1][2], pip_keys[2][0], pip_keys[2][1], pip_keys[2][2],
-        pip_keys[3][0], pip_keys[3][1], pip_keys[3][2], pip_keys[4][0], pip_keys[4][1], pip_keys[4][2]]
+        pip_keys[3][0], pip_keys[3][1], pip_keys[3][2], pip_keys[4][0], pip_keys[4][1], pip_keys[4][2],
+        pip_mcp[0][0], pip_mcp[0][1], pip_mcp[0][2], pip_mcp[1][0], pip_mcp[1][1], pip_mcp[1][2],
+        pip_mcp[2][0], pip_mcp[2][1], pip_mcp[2][2], pip_mcp[3][0], pip_mcp[3][1], pip_mcp[3][2],
+        pip_mcp[4][0], pip_mcp[4][1], pip_mcp[4][2], dip_pip[0][0], dip_pip[0][1], dip_pip[0][2],
+        dip_pip[1][0], dip_pip[1][1], dip_pip[1][2], dip_pip[2][0], dip_pip[2][1], dip_pip[2][2],
+        dip_pip[3][0], dip_pip[3][1], dip_pip[3][2], dip_pip[4][0], dip_pip[4][1], dip_pip[4][2]]
         writer.writerow(result)
         # img = cv2.imread(base_path + frame, cv2.IMREAD_ANYDEPTH)
         # norm_image = cv2.normalize(img, None, alpha = 0, beta = 1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)

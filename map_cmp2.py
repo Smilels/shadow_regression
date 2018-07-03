@@ -9,7 +9,7 @@ from torchvision import transforms
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 from model.model_cmp import CPM2
-from triplet_image_loader_check import SimpleImageLoader
+from triplet_image_loader import SimpleImageLoader
 from visdom import Visdom
 import numpy as np
 import torch.utils.model_zoo as model_zoo
@@ -90,10 +90,10 @@ def main():
 
     print('==>Preparing data...')
 
-    base_path = "./data/handpose_data_test/"
-
+    base_path = "./data/handpose_data_cpm/"
+    
     test_loader = torch.utils.data.DataLoader(
-        SimpleImageLoader(base_path, False,
+        SimpleImageLoader(base_path, True,
                         transform=transforms.Compose([
                                 transforms.Resize(380),
                                 transforms.CenterCrop(368),
@@ -124,11 +124,9 @@ def main():
         else:
             print("==> no checkpoint found at '{}'".format(args.resume))
 
-    for epoch in range(1, args.epochs + 1):
-        feature2 = test(test_loader, jnet, criterion, epoch)
-        print(feature2)
+    feature2 = test(test_loader, jnet, criterion)
 
-def test(test_loader, jnet, criterion, epoch):
+def test(test_loader, jnet, criterion):
     losses = AverageMeter()
     accs1 = AverageMeter()
     accs2 = AverageMeter()
@@ -137,48 +135,41 @@ def test(test_loader, jnet, criterion, epoch):
     jnet.eval()
 
     for batch_idx, (data1, joint_target) in enumerate(test_loader):
-        joint_target = torch.t(torch.stack(joint_target)).float()
-        if args.cuda:
-            data1, joint_target = data1.cuda(), joint_target.cuda()
+        if batch_idx<200:
+            joint_target = torch.t(torch.stack(joint_target)).float()
+            if args.cuda:
+                data1, joint_target = data1.cuda(), joint_target.cuda()
 
-        data1, joint_target = Variable(data1), Variable(joint_target)
-        img= data1.squeeze()
-        to_pil_image = transforms.ToPILImage()
-        img = to_pil_image(img)
-        img.show()
+            data1, joint_target = Variable(data1), Variable(joint_target)
 
-        # compute output
-        feature1, feature2, map_feature1, map_feature2 = jnet(data1)
+            # compute output
+            feature1, feature2, map_feature1, map_feature2 = jnet(data1)
 
-        loss1 = criterion(feature1, joint_target)
-        loss2 = criterion(feature2, joint_target)
-        loss_joint = loss1 + loss2
-        loss_cons = joint_constraits(feature2)
-        loss = 10 * loss_joint + loss_cons
+            print(feature2)
+            loss1 = criterion(feature1, joint_target)
+            loss2 = criterion(feature2, joint_target)
+            loss_joint = loss1 + loss2
+            loss_cons = joint_constraits(feature2)
+            loss = 10 * loss_joint + loss_cons
 
-        acc = accuracy(feature2, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
-        ll = loss.data
-        losses.update(ll, data1.size(0))
-        accs1.update(acc[0], data1.size(0))
-        accs2.update(acc[1], data1.size(0))
-        accs3.update(acc[2], data1.size(0))
+            acc = accuracy(feature2, joint_target, accuracy_thre=[0.05, 0.1, 0.2])
+            ll = loss.data
+            losses.update(ll, data1.size(0))
+            accs1.update(acc[0], data1.size(0))
+            accs2.update(acc[1], data1.size(0))
+            accs3.update(acc[2], data1.size(0))
 
-        if batch_idx % args.log_interval == 0:
-            print('Test Simple Epoch: {} [{}/{}]\t'
-                  'Loss: {:.4f} ({:.4f}) ({:.4f})\t'
-                  'Acc1: {:.2f}% ({:.2f}%) \t'
-                  'Acc2: {:.2f}% ({:.2f}%) \t'
-                  'Acc3: {:.2f}% ({:.2f}%)'.format(
-                    epoch, batch_idx * len(data1), len(test_loader.dataset),
-                    losses.val, losses.avg, loss_cons,
-                    100. * accs1.val, 100. * accs1.avg, 100. * accs2.val,
-                    100. * accs2.avg, 100. * accs3.val, 100. * accs3.avg))
+            if batch_idx % args.log_interval == 0:
+                print('Test Simple Epoch: [{}/{}]\t'
+                      'Loss: {:.4f} ({:.4f}) ({:.4f})\t'
+                      'Acc1: {:.2f}% ({:.2f}%) \t'
+                      'Acc2: {:.2f}% ({:.2f}%) \t'
+                      'Acc3: {:.2f}% ({:.2f}%)'.format(
+                        batch_idx * len(data1), len(test_loader.dataset),
+                        losses.val, losses.avg, loss_cons,
+                        100. * accs1.val, 100. * accs1.avg, 100. * accs2.val,
+                        100. * accs2.avg, 100. * accs3.val, 100. * accs3.avg))
 
-    # log avg values to somewhere
-    plotter.plot('acc1', 'test', epoch, accs1.avg)
-    plotter.plot('acc2', 'test', epoch, accs2.avg)
-    plotter.plot('acc3', 'test', epoch, accs3.avg)
-    plotter.plot('loss', 'test', epoch, losses.avg)
 
     return feature2
 

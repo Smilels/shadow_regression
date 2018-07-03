@@ -17,11 +17,85 @@
 #include <sstream>
 
 #include <bio_ik/bio_ik.h>
+#include "collision_free_goal.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+bool take_photo = false;
+bool take_rgb = false;
+int image_count = 0;
+
+// tf::Vector3 PointTransform(tf::StampedTransform transform, tf::Vector3 source_position, std::string source_frame, std::string target_frame)
+// {
+//   tf::Stamped<tf::Point> stamped_in(source_position, ros::Time::now(), source_frame);
+//   tf::Vector3 target_position;
+//
+//   target_position = transform * stamped_in;
+//   target_position.setZ(target_position.z() + 0.04);
+//
+//   return target_position;
+// }
+//
+// tf::Vector3 VectorTransform(tf::StampedTransform transform, tf::Vector3 source_direction, std::string source_frame, std::string target_frame)
+// {
+//   tf::Vector3 target_direction;
+//   tf::Vector3 end = source_direction;
+//   tf::Vector3 origin = tf::Vector3(0,0,0);
+//   target_direction = (transform * end) - (transform * origin);
+//
+//   return target_direction.normalized();
+// }
+
+void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
+{
+  if (take_photo)
+  {
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+      //cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
+      if (image_data->encoding == "32FC1")
+      {
+         cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::TYPE_32FC1);
+         take_photo = false;
+         cv::Mat image = cv_ptr->image;
+    	 image.convertTo(image, CV_16UC1, 1000);
+    	 cv::imwrite("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/depth_shadow/" + std::to_string(image_count ) + ".png", image);
+      }
+    }
+    catch (cv_bridge::Exception& e)
+    {
+      ROS_ERROR("cv_bridge exception: %s", e.what());
+      return;
+    }
+  }
+}
+
+void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
+{
+  if (take_rgb)
+  {
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+      //cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
+      if (image_data->encoding == "rgb8")
+      {
+         cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
+         take_rgb = false;
+         cv::Mat image = cv_ptr->image;
+    	 cv::imwrite("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/rgb_shadow/" + std::to_string(image_count ) + ".png", image);
+      }
+    }
+    catch (cv_bridge::Exception& e)
+    {
+      ROS_ERROR("cv_bridge exception: %s", e.what());
+      return;
+    }
+  }
+}
 
 int main(int argc, char** argv)
 {
@@ -29,78 +103,65 @@ int main(int argc, char** argv)
     ros::NodeHandle node_handle;
     ros::AsyncSpinner spinner(1);
     spinner.start();
+    tf::TransformListener tf_listener;
 
-    std::string group_name = "right_hand";
+    std::string group_name = "right_hand"; // right_arm_and_hand
     moveit::planning_interface::MoveGroupInterface mgi(group_name);
-    std::string current_frame = mgi.getPoseReferenceFrame();
+    std::string base_frame = mgi.getPoseReferenceFrame();
+    std::cout<< "base_frame: " << base_frame <<std::endl;
     mgi.setGoalTolerance(0.01);
     mgi.setPlanningTime(10);
     auto robot_model = mgi.getCurrentState()->getRobotModel();
     auto joint_model_group = robot_model->getJointModelGroup(group_name);
     moveit::core::RobotState robot_state(robot_model);
 
-    // track goals using bio ik
-    std::vector<robot_state::RobotState> states;
-    bio_ik::BioIKKinematicsQueryOptions ik_options;
-    ik_options.replace = true;
-    ik_options.return_approximate_solution = true;
+    ROS_WARN_STREAM("please move the hand to 'open' pose");
+    mgi.setNamedTarget("open");
+    mgi.move();
+
     double timeout = 0.2;
+    int attempts = 3;
+    std::vector<std::string> MapPositionlinks {
+      "rh_thtip",
+      "rh_fftip",
+      "rh_mftip",
+      "rh_rftip",
+      "rh_lftip",
+      "rh_thmiddle",
+      "rh_ffmiddle",
+      "rh_mfmiddle",
+      "rh_rfmiddle",
+      "rh_lfmiddle"
+    };
+    std::vector<std::string> MapDirectionlinks1 {
+      "rh_thproximal",
+      "rh_ffproximal",
+      "rh_mfproximal",
+      "rh_rfproximal",
+      "rh_lfproximal",
+    };
+    std::vector<std::string> MapDirectionlinks2 {
+      "rh_thmiddle",
+      // "rh_ffmiddle",
+      // "rh_mfmiddle",
+      // "rh_rfmiddle",
+      // "rh_lfmiddle"
+    };
+    std::vector <float> MapPositionweights {1,1,1,1,1,0.2,0.2,0.2,0.2,0.2};
+    std::vector <float> MapDirectionweights1{0.2,0.2,0.2,0.2,0.2};
+    std::vector <float> MapDirectionweights2{0.2};
 
-    auto* th_goal = new bio_ik::PositionGoal();
-    auto* ff_goal = new bio_ik::PositionGoal();
-    auto* mf_goal = new bio_ik::PositionGoal();
-    auto* rf_goal = new bio_ik::PositionGoal();
-    auto* lf_goal = new bio_ik::PositionGoal();
-    auto* th_middle_goal = new bio_ik::PositionGoal();
-    auto* ff_middle_goal = new bio_ik::PositionGoal();
-    auto* mf_middle_goal = new bio_ik::PositionGoal();
-    auto* rf_middle_goal = new bio_ik::PositionGoal();
-    auto* lf_middle_goal = new bio_ik::PositionGoal();
-
-    th_goal->setLinkName("rh_thtip");
-    ff_goal->setLinkName("rh_fftip");
-    mf_goal->setLinkName("rh_mftip");
-    rf_goal->setLinkName("rh_rftip");
-    lf_goal->setLinkName("rh_lftip");
-    th_middle_goal->setLinkName("rh_thmiddle");
-    ff_middle_goal->setLinkName("rh_ffmiddle");
-    mf_middle_goal->setLinkName("rh_mfmiddle");
-    rf_middle_goal->setLinkName("rh_rfmiddle");
-    lf_middle_goal->setLinkName("rh_lfmiddle");
-
-    th_goal->setWeight(1);
-    ff_goal->setWeight(1);
-    mf_goal->setWeight(1);
-    rf_goal->setWeight(1);
-    lf_goal->setWeight(1);
-    th_middle_goal->setWeight(0.2);
-    ff_middle_goal->setWeight(0.2);
-    mf_middle_goal->setWeight(0.2);
-    rf_middle_goal->setWeight(0.2);
-    lf_middle_goal->setWeight(0.2);
-
-
-    tf::Vector3 th_position;
-    tf::Vector3 ff_position;
-    tf::Vector3 mf_position;
-    tf::Vector3 rf_position;
-    tf::Vector3 lf_position;
-    tf::Vector3 th_middle_position;
-    tf::Vector3 ff_middle_position;
-    tf::Vector3 mf_middle_position;
-    tf::Vector3 rf_middle_position;
-    tf::Vector3 lf_middle_position;
-
-    std::ifstream mapfile("/home/sli/pr2_ws/src/shadow_regression/data/trainning/human_robot_mapdata_pip_tams.csv");
+    std::ifstream mapfile("/home/sli/pr2_shadow_ws/src/shadow_regression/data/trainning/human_robot_mapdata_pip_tams.csv");
     std::string line, item;
-    int i=0;
-    while(std::getline(mapfile, line)){
-        mgi.setNamedTarget("open");
-        mgi.move();
-        ros::Duration(1).sleep();
+    while(std::getline(mapfile, line))
+    {
+        bio_ik::BioIKKinematicsQueryOptions ik_options;
+        ik_options.replace = true;
+        ik_options.return_approximate_solution = true;
+
         std::istringstream myline(line);
         std::vector<double> csvItem;
-        i++;
+        image_count++;
         while(std::getline(myline, item, ','))
         {
             if (item[0]=='i')
@@ -113,77 +174,106 @@ int main(int argc, char** argv)
                 // cv::normalize(depth_image, dispImage, 0, 1, cv::NORM_MINMAX, CV_32F);
                 // cv::imshow("depth_image", dispImage);
 
-                hand_shape = cv::imread("/home/sli/pr2_ws/src/shadow_regression/data/tams_handshape/" + std::to_string(i)+ ".png"); // Read the file
-                cv::resize(hand_shape, hand_shape, cv::Size(640, 480));
-                cv::imshow("shape", hand_shape);
-                cv::waitKey(5); // Wait for a keystroke in the window
+                // hand_shape = cv::imread("/home/sli/pr2_shadow_ws/src/shadow_regression/data/tams_handshape/" + std::to_string(image_count)+ ".png"); // Read the file
+                // cv::resize(hand_shape, hand_shape, cv::Size(640, 480));
+                // cv::imshow("shape", hand_shape);
+                // cv::waitKey(5); // Wait for a keystroke in the window
                 continue;
             }
             csvItem.push_back(std::stof(item));
             // std::cout<< csvItem.back()<<std::endl;
         }
 
-        // the constant transform.getorigin between /world and /rh_wrist
-        tf::Vector3 transform_world_wrist(0.0, -0.01, 0.213+0.04);//0.034
-        th_position = tf::Vector3(csvItem[0], csvItem[1], csvItem[2]) + transform_world_wrist;
-        ff_position = tf::Vector3(csvItem[3], csvItem[4], csvItem[5]) + transform_world_wrist;
-        mf_position = tf::Vector3(csvItem[6], csvItem[7], csvItem[8]) + transform_world_wrist;
-        rf_position = tf::Vector3(csvItem[9], csvItem[10], csvItem[11]) + transform_world_wrist;
-        lf_position = tf::Vector3(csvItem[12], csvItem[13], csvItem[14]) + transform_world_wrist;
+        for (int j = 0; j< MapPositionlinks.size(); j++)
+        {
+            int t = j * 3;
+            tf::Vector3 position = tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2]);
 
-        th_middle_position = tf::Vector3(csvItem[15], csvItem[16], csvItem[17]) + transform_world_wrist;
-        ff_middle_position = tf::Vector3(csvItem[18], csvItem[19], csvItem[20]) + transform_world_wrist;
-        mf_middle_position = tf::Vector3(csvItem[21], csvItem[22], csvItem[23]) + transform_world_wrist;
-        rf_middle_position = tf::Vector3(csvItem[24], csvItem[25], csvItem[26]) + transform_world_wrist;
-        lf_middle_position = tf::Vector3(csvItem[27], csvItem[28], csvItem[29]) + transform_world_wrist;
+            // transform position from current rh_wrist into base_frame
+            tf::Stamped<tf::Point> stamped_in(position, ros::Time::now(), "rh_wrist");
+            tf::Stamped<tf::Vector3> stamped_out;
+            tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformPoint(base_frame, stamped_in, stamped_out);
+            tf::Vector3 Mapposition = stamped_out;
+            Mapposition.setZ(Mapposition.z() + 0.04);
 
-        th_goal->setPosition(th_position);
-        ff_goal->setPosition(ff_position);
-        mf_goal->setPosition(mf_position);
-        rf_goal->setPosition(rf_position);
-        lf_goal->setPosition(lf_position);
-        th_middle_goal->setPosition(th_middle_position);
-        ff_middle_goal->setPosition(ff_middle_position);
-        mf_middle_goal->setPosition(mf_middle_position);
-        rf_middle_goal->setPosition(rf_middle_position);
-        lf_middle_goal->setPosition(lf_middle_position);
+            ik_options.goals.emplace_back(new bio_ik::PositionGoal(MapPositionlinks[j], Mapposition, MapPositionweights[j]));
+        }
 
-        ik_options.goals.emplace_back(th_goal);
-        ik_options.goals.emplace_back(ff_goal);
-        ik_options.goals.emplace_back(mf_goal);
-        ik_options.goals.emplace_back(rf_goal);
-        ik_options.goals.emplace_back(lf_goal);
-        ik_options.goals.emplace_back(th_middle_goal);
-        ik_options.goals.emplace_back(ff_middle_goal);
-        ik_options.goals.emplace_back(mf_middle_goal);
-        ik_options.goals.emplace_back(rf_middle_goal);
-        ik_options.goals.emplace_back(lf_middle_goal);
+        for (int j = 0; j< MapDirectionlinks1.size(); j++)
+        {
+            int t = 30 + j * 3;
+            tf::Vector3 proximal_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
+
+            // transform position from current rh_wrist into base_frame
+            tf::Stamped<tf::Point> stamped_in(proximal_direction, ros::Time::now(), "rh_wrist");
+            tf::Stamped<tf::Vector3> stamped_out;
+            tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformVector(base_frame, stamped_in, stamped_out);
+            tf::Vector3 Mapdirection = stamped_out;
+
+            ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks1[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights1[j]));
+        }
+
+        // for (int j = 0; j< MapDirectionlinks2.size(); j++)
+        // {
+        //   int t = 45 + j*3;
+        //   tf::Vector3 dummy_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
+        //
+        //   // transform position from current rh_wrist into base_frame
+        //   tf::Stamped<tf::Point> stamped_in(dummy_direction, ros::Time::now(), "rh_wrist");
+        //   tf::Stamped<tf::Vector3> stamped_out;
+        //   tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
+        //   tf_listener.transformVector(base_frame, stamped_in, stamped_out);
+        //   tf::Vector3 Mapdirection = stamped_out;
+        //
+        //   ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks1[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights1[j]));
+        // }
+
+        // special design for the position shadow can not learn
+        // self_collision_free goal
+        // float collision_weight = 1;
+        // ik_options.goals.emplace_back(new Collision_freeGoal(collision_weight));
 
         // set ik solver
         bool found_ik =robot_state.setFromIK(
                           joint_model_group,           // active Shadow joints
                           EigenSTL::vector_Affine3d(), // no explicit poses here
-                          std::vector<std::string>(),  // rh_wrist
-                          0, timeout,                      // take values from YAML file
+                          std::vector<std::string>(),
+                          attempts, timeout,
                           moveit::core::GroupStateValidityCallbackFn(),
-                          ik_options       // five fingertip position goals
+                          ik_options
                         );
 
         // move to the solution position
         std::vector<double> joint_values;
+        moveit::planning_interface::MoveGroupInterface::Plan shadow_plan;
         if (found_ik)
         {
             robot_state.copyJointGroupPositions(joint_model_group, joint_values);
-            // std::cout<< joint_values[1] << joint_values[2] << joint_values[3] <<std::endl;
+            // std::cout<< joint_values[1] << joint_values[2] << joint_values[3] <<joint_values[4]<<joint_values[0]<<std::endl;
             mgi.setJointValueTarget(joint_values);
-            if (!static_cast<bool>(mgi.move()))
-                    ROS_WARN_STREAM("Failed to execute state");
-            ros::Duration(7).sleep();
+            if (!(static_cast<bool>(mgi.plan(shadow_plan))))
+            {
+                std::cout<< "Failed to plan pose '" << image_count << std::endl;
+                continue;
+            }
+
+            if(!(static_cast<bool>(mgi.execute(shadow_plan))))
+            {
+                std::cout << "Failed to execute pose '" << image_count<< std::endl;
+                continue;
+            }
+            else
+                std::cout << " moved to " << image_count << std::endl;
+
+            ros::Duration(1).sleep();
+            take_photo = true;
+            take_rgb = true;
+            ROS_WARN_STREAM("take photo now");
         }
         else
-        {
             ROS_INFO("Did not find IK solution");
-        }
         // cv::destroyAllWindows();
         // cv::waitKey(1);
     }

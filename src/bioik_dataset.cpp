@@ -93,7 +93,7 @@ int main(int argc, char** argv)
     auto robot_model = mgi.getCurrentState()->getRobotModel();
     auto joint_model_group = robot_model->getJointModelGroup(group_name);
     moveit::core::RobotState robot_state(robot_model);
-    
+
     double timeout = 0.2;
     
     std::ifstream mapfile("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/training/human_robot_mapdata_whole.csv");
@@ -106,6 +106,17 @@ int main(int argc, char** argv)
         bio_ik::BioIKKinematicsQueryOptions ik_options;
         ik_options.replace = true;
         ik_options.return_approximate_solution = true;   
+
+        std::ifstream mapfile("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/training/human_robot_mapdata_whole.csv");
+        std::string line, item;
+        while(std::getline(mapfile, line)){
+        // mgi.setNamedTarget("open");
+        // mgi.move();
+
+        // track goals using bio ik
+        bio_ik::BioIKKinematicsQueryOptions ik_options;
+        ik_options.replace = true;
+        ik_options.return_approximate_solution = true;
 
         auto* th_goal = new bio_ik::PositionGoal();
         auto* ff_goal = new bio_ik::PositionGoal();
