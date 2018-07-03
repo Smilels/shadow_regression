@@ -286,7 +286,7 @@ if __name__ == '__main__':
         # mlab.figure(bgcolor=(1,1,1))
         # show_hand(shadow_points, 'shadow')
         # show_hand(local_points, 'human')
-        # mlab.savefig(filename= "./data/handshape/" + str(i+1) +'.png')
+        # mlab.savefig(filename= "./data/handshape/" + frame +'.png')
         # mlab.close()
         # mlab.show()
     csvSum.close()

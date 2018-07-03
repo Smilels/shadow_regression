@@ -23,7 +23,7 @@ class Map_Loader(object):
         self.shadow = self.tams_shadow_model()
 
     def map(self, start):
-        rh_palm, rh_middle_pip, rh_tip_middle, rh_dummy_middle= self.shadow
+        rh_palm, rh_middle_pip, rh_tip_middle= self.shadow
         # the joint order is
         # [Wrist, TMCP, IMCP, MMCP, RMCP, PMCP, TPIP,
         # TDIP, TTIP, IPIP, IDIP, ITIP, MPIP, MDIP, MTIP, RPIP, RDIP, RTIP, PPIP, PDIP, PTIP]
@@ -103,12 +103,12 @@ class Map_Loader(object):
                                     rh_pip_mcp_key[3],  rh_tip_pip_key[3], rh_tip_pip_key[3],
                                     rh_pip_mcp_key[4],  rh_tip_pip_key[4], rh_tip_pip_key[4]])
 
-        tip_keys = rh_tip_pip_key/1000
-        pip_keys = rh_pip_mcp_key/1000
+        # tip_keys = rh_tip_pip_key/1000
+        # pip_keys = rh_pip_mcp_key/1000
         # mcp_keys = rh_wrist_mcp_key/1000
         # dip_keys = rh_dip_pip_key/1000
         # from IPython import embed;embed()
-        return tip_keys, pip_keys, pip_mcp, dip_pip, frame, local_points, shadow_points
+        return rh_tip_pip_key/1000, rh_pip_mcp_key/1000, pip_mcp/1000, dip_pip/1000, frame, local_points, shadow_points
 
     def tams_shadow_model(self):
         # shadow hand length
@@ -136,10 +136,9 @@ class Map_Loader(object):
 
         rh_middle_pip = np.array([rh_tf_middle_pip, rh_ff_middle_pip, rh_mf_middle_pip, rh_rf_middle_pip, rh_lf_middle_pip])
         rh_tip_middle = np.array([rh_tf_tip_middle, rh_ff_tip_middle, rh_mf_tip_middle, rh_rf_tip_middle, rh_lf_tip_middle])
-        rh_dummy_middle = np.array([20, 20, 20, 20, 20])
 
         # rh_len = rh_palm + rh_middle_pip + rh_tip_middle
-        return [rh_palm, rh_middle_pip, rh_tip_middle, rh_dummy_middle]
+        return [rh_palm, rh_middle_pip, rh_tip_middle]
 
 
 def show_line(un1, un2, color='g', scale_factor=1):
