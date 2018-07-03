@@ -29,11 +29,6 @@ bool take_photo = false;
 bool take_rgb = false;
 std::string item;
 
-inline bool existence (const std::string& name) {
-  struct stat buffer;
-  return (stat (name.c_str(), &buffer) == 0);
-}
-
 void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 {
     if (take_photo)
@@ -236,7 +231,7 @@ int main(int argc, char** argv)
     else
     {
         std::ofstream outFile;
-        outFile.open("/home/sli/pr2_shadow_ws/src/shadow_regression/data/trainning/failed_images.csv",std::ios::app);
+        outFile.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/trainning/failed_images.csv",std::ios::app);
         for( auto& t : failed_images )
     		    outFile << t << std::endl;
     }
