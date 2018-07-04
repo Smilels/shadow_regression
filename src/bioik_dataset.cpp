@@ -227,15 +227,15 @@ int main(int argc, char** argv)
             // can not move robot when taking photoes.
             while (take_rgb || take_photo)
                 ros::Duration(0.1).sleep();
-
-            // save joint angles and end_effector pose
-            geometry_msgs::PoseStamped end_effector_pose = mgi.getCurrentPose();
-            std::cout << "current_pose " << end_effector_pose << std::endl;
-            tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
-
-            geometry_msgs::PoseStamped end_effector_wrist_pose;
-            tf_listener.transformPose("rh_wrist", end_effector_pose, end_effector_wrist_pose);
-            std::cout << "end_effector_wrist_pose " << end_effector_wrist_pose << std::endl;
+            std::cout << mgi.getEndEffectorLink () <<std::endl;
+            // save joint angles and end_effector pose   
+            // geometry_msgs::PoseStamped end_effector_pose = mgi.getCurrentPose();
+            // std::cout << "current_pose " << end_effector_pose << std::endl;
+            //   tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
+   
+          //  geometry_msgs::PoseStamped end_effector_wrist_pose;
+           // tf_listener.transformPose("rh_wrist", end_effector_pose, end_effector_wrist_pose);
+          //  std::cout << "end_effector_wrist_pose " << end_effector_wrist_pose << std::endl;
 
             std::ofstream joints_file;
             joints_file.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/training/joints_file.csv",std::ios::app);
