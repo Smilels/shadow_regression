@@ -189,6 +189,9 @@ int main(int argc, char** argv)
         if (found_ik)
         {
             robot_state.copyJointGroupPositions(joint_model_group, joint_values);
+            // set the angle of two wrist joint zero
+            joint_values[0] = 0;
+            joint_values[1] = 0;
             mgi.setJointValueTarget(joint_values);
             if (!(static_cast<bool>(mgi.plan(shadow_plan))))
             {
@@ -208,6 +211,19 @@ int main(int argc, char** argv)
             // ros::Duration(1).sleep();
             take_photo = true;
             take_rgb = true;
+
+            // save joint angles
+            std::ofstream joints_file;
+            joints_file.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/training/joints_file.csv",std::ios::app);
+            joints_file << item << ',' << std::to_string( joint_values[0]) << ',' << std::to_string( joint_values[1]) <<','
+            << std::to_string( joint_values[2]) <<',' << std::to_string( joint_values[3]) <<',' << std::to_string( joint_values[4]) <<','
+            << std::to_string( joint_values[5]) <<',' << std::to_string( joint_values[6]) <<',' << std::to_string( joint_values[7]) <<','
+            << std::to_string( joint_values[8]) <<',' << std::to_string( joint_values[9]) <<',' << std::to_string( joint_values[10]) <<','
+            << std::to_string( joint_values[11]) <<',' << std::to_string( joint_values[12]) <<',' << std::to_string( joint_values[13]) <<','
+            << std::to_string( joint_values[14]) <<',' << std::to_string( joint_values[15]) <<',' << std::to_string( joint_values[16]) <<','
+            << std::to_string( joint_values[17]) <<',' << std::to_string( joint_values[18]) <<',' << std::to_string( joint_values[19]) <<','
+            << std::to_string( joint_values[20]) <<',' << std::to_string( joint_values[21]) <<',' << std::to_string( joint_values[22]) <<','
+            << std::to_string( joint_values[23]) << std::endl;
 
             // can not move robot when taking photoes.
             while (take_rgb || take_photo)
