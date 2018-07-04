@@ -266,27 +266,27 @@ if __name__ == '__main__':
     for i in range(0, len(map_loader.framelist)):
         tip_keys, pip_keys, dip_keys, mcp_keys, frame, local_points, shadow_points = map_loader.map(i)
         # save key
-        result = [frame, tip_keys[0][0], tip_keys[0][1], tip_keys[0][2], tip_keys[1][0], tip_keys[1][1], tip_keys[1][2],
-        tip_keys[2][0], tip_keys[2][1], tip_keys[2][2], tip_keys[3][0], tip_keys[3][1], tip_keys[3][2],
-        tip_keys[4][0], tip_keys[4][1], tip_keys[4][2], pip_keys[0][0], pip_keys[0][1], pip_keys[0][2],
-        pip_keys[1][0], pip_keys[1][1], pip_keys[1][2], pip_keys[2][0], pip_keys[2][1], pip_keys[2][2],
-        pip_keys[3][0], pip_keys[3][1], pip_keys[3][2], pip_keys[4][0], pip_keys[4][1], pip_keys[4][2],
-        dip_keys[0][0], dip_keys[0][1], dip_keys[0][2], dip_keys[1][0], dip_keys[1][1], dip_keys[1][2],
-        dip_keys[2][0], dip_keys[2][1], dip_keys[2][2], dip_keys[3][0], dip_keys[3][1], dip_keys[3][2],
-        dip_keys[4][0], dip_keys[4][1], dip_keys[4][2], mcp_keys[0][0], mcp_keys[0][1], mcp_keys[0][2],
-        mcp_keys[1][0], mcp_keys[1][1], mcp_keys[1][2], mcp_keys[2][0], mcp_keys[2][1], mcp_keys[2][2],
-        mcp_keys[3][0], mcp_keys[3][1], mcp_keys[3][2], mcp_keys[4][0], mcp_keys[4][1], mcp_keys[4][2]]
-        writer.writerow(result)
-        # img = cv2.imread(base_path + frame, cv2.IMREAD_ANYDEPTH)
-        # norm_image = cv2.normalize(img, None, alpha = 0, beta = 1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        # cv2.imshow("depth", norm_image)
-        # cv2.waitKey(2)
+        # result = [frame, tip_keys[0][0], tip_keys[0][1], tip_keys[0][2], tip_keys[1][0], tip_keys[1][1], tip_keys[1][2],
+        # tip_keys[2][0], tip_keys[2][1], tip_keys[2][2], tip_keys[3][0], tip_keys[3][1], tip_keys[3][2],
+        # tip_keys[4][0], tip_keys[4][1], tip_keys[4][2], pip_keys[0][0], pip_keys[0][1], pip_keys[0][2],
+        # pip_keys[1][0], pip_keys[1][1], pip_keys[1][2], pip_keys[2][0], pip_keys[2][1], pip_keys[2][2],
+        # pip_keys[3][0], pip_keys[3][1], pip_keys[3][2], pip_keys[4][0], pip_keys[4][1], pip_keys[4][2],
+        # dip_keys[0][0], dip_keys[0][1], dip_keys[0][2], dip_keys[1][0], dip_keys[1][1], dip_keys[1][2],
+        # dip_keys[2][0], dip_keys[2][1], dip_keys[2][2], dip_keys[3][0], dip_keys[3][1], dip_keys[3][2],
+        # dip_keys[4][0], dip_keys[4][1], dip_keys[4][2], mcp_keys[0][0], mcp_keys[0][1], mcp_keys[0][2],
+        # mcp_keys[1][0], mcp_keys[1][1], mcp_keys[1][2], mcp_keys[2][0], mcp_keys[2][1], mcp_keys[2][2],
+        # mcp_keys[3][0], mcp_keys[3][1], mcp_keys[3][2], mcp_keys[4][0], mcp_keys[4][1], mcp_keys[4][2]]
+        # writer.writerow(result)
+        img = cv2.imread(base_path + frame, cv2.IMREAD_ANYDEPTH)
+        norm_image = cv2.normalize(img, None, alpha = 0, beta = 1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        cv2.imshow("depth", norm_image)
+        cv2.waitKey(2)
         #
-        # mlab.clf
-        # mlab.figure(bgcolor=(1,1,1))
+        mlab.clf
+        mlab.figure(bgcolor=(1,1,1),size=(1280,960))
         # show_hand(shadow_points, 'shadow')
-        # show_hand(local_points, 'human')
-        # mlab.savefig(filename= "./data/handshape/" + frame +'.png')
+        show_hand(local_points, 'human')
+        # mlab.savefig(filename= "./data/handshape/" + frame)
         # mlab.close()
-        # mlab.show()
+        mlab.show()
     csvSum.close()

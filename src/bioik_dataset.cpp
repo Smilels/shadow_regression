@@ -2,6 +2,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <tf/transform_listener.h>
 #include <sensor_msgs/Image.h>
+#include <geometry_msgs/PoseStamped.h>
 
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_pipeline/planning_pipeline.h>
@@ -28,6 +29,8 @@
 bool take_photo = false;
 bool take_rgb = false;
 std::string item;
+std::string depth_img_path_;
+std::string rgb_img_path_;
 
 void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 {
@@ -42,7 +45,7 @@ void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
                  cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::TYPE_32FC1);
                  cv::Mat image = cv_ptr->image;
             	   image.convertTo(image, CV_16UC1, 1000);
-            	   cv::imwrite("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/depth_shadow/" + item , image);
+            	   cv::imwrite(depth_img_path_ + item , image);
                  take_photo = false;
             }
         }
@@ -65,7 +68,7 @@ void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
             if (image_data->encoding == "rgb8")
             {
                  cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
-            	   cv::imwrite("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/rgb_shadow/" + item, cv_ptr->image);
+            	   cv::imwrite(rgb_img_path_ + item, cv_ptr->image);
                  take_rgb = false;
             }
         }
@@ -80,12 +83,21 @@ void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "bio_ik_human_robot_mapping", 1);
-    ros::NodeHandle n;
+    ros::NodeHandle nh;
+    ros::NodeHandle pnh("~");
     ros::AsyncSpinner spinner(1);
     spinner.start();
-    ros::Subscriber sub_depth = n.subscribe("/camera/depth/image_raw", 1, depth_Callback);
-    ros::Subscriber sub_rgb = n.subscribe("/camera/rgb/image_raw", 1, rgb_Callback);
     tf::TransformListener tf_listener;
+
+    std::string mapfile_;
+    std::string handshape_;
+    pnh.getParam("mapfile", mapfile_);
+    pnh.getParam("depth_img_path", depth_img_path_);
+    pnh.getParam("rgb_img_path", rgb_img_path_);
+    pnh.getParam("handshape", handshape_);
+
+    // ros::Subscriber sub_depth = n.subscribe("/camera/depth/image_raw", 1, depth_Callback);
+    ros::Subscriber sub_rgb = nh.subscribe("/camera/rgb/image_raw", 1, rgb_Callback);
 
     std::string group_name = "right_hand";
     moveit::planning_interface::MoveGroupInterface mgi(group_name);
@@ -104,7 +116,7 @@ int main(int argc, char** argv)
 
     double timeout = 0.2;
 
-    std::ifstream mapfile("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/training/human_robot_mapdata_whole.csv");
+    std::ifstream mapfile(mapfile_);
     std::string line, items;
     while(std::getline(mapfile, line)){
         // track goals using bio ik
@@ -140,13 +152,13 @@ int main(int argc, char** argv)
                 item = items;
                 std::cout<< item <<std::endl;
                 // cv::Mat depth_image;
-                // cv::Mat hand_shape;
+                cv::Mat hand_shape;
                 // depth_image = cv::imread("/home/sli/shadow_ws/imitation/src/shadow_regression/data/trainning/" + item, cv::IMREAD_ANYDEPTH); // Read the file
                 // cv::Mat dispImage;
                 // cv::normalize(depth_image, dispImage, 0, 1, cv::NORM_MINMAX, CV_32F);
                 // cv::imshow("depth_image", dispImage);
 
-                // hand_shape = cv::imread("/home/sli/shadow_ws/imitation/src/shadow_regression/data/handshape/" + std::to_string(i)+ ".png"); // Read the file
+                // hand_shape = cv::imread(handshape_ + item); // Read the file
                 // cv::resize(hand_shape, hand_shape, cv::Size(640, 480));
                 // cv::imshow("shape", hand_shape);
                 // cv::waitKey(3); // Wait for a keystroke in the window
@@ -212,7 +224,19 @@ int main(int argc, char** argv)
             take_photo = true;
             take_rgb = true;
 
-            // save joint angles
+            // can not move robot when taking photoes.
+            while (take_rgb || take_photo)
+                ros::Duration(0.1).sleep();
+
+            // save joint angles and end_effector pose
+            geometry_msgs::PoseStamped end_effector_pose = mgi.getCurrentPose();
+            std::cout << "current_pose " << end_effector_pose << std::endl;
+            tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
+
+            geometry_msgs::PoseStamped end_effector_wrist_pose;
+            tf_listener.transformPose("rh_wrist", end_effector_pose, end_effector_wrist_pose);
+            std::cout << "end_effector_wrist_pose " << end_effector_wrist_pose << std::endl;
+
             std::ofstream joints_file;
             joints_file.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/training/joints_file.csv",std::ios::app);
             joints_file << item << ',' << std::to_string( joint_values[0]) << ',' << std::to_string( joint_values[1]) <<','
@@ -224,10 +248,6 @@ int main(int argc, char** argv)
             << std::to_string( joint_values[17]) <<',' << std::to_string( joint_values[18]) <<',' << std::to_string( joint_values[19]) <<','
             << std::to_string( joint_values[20]) <<',' << std::to_string( joint_values[21]) <<',' << std::to_string( joint_values[22]) <<','
             << std::to_string( joint_values[23]) << std::endl;
-
-            // can not move robot when taking photoes.
-            while (take_rgb || take_photo)
-                ros::Duration(0.1).sleep();
         }
         else
         {

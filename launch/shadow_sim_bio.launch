@@ -1,7 +1,9 @@
+<?xml version="1.0"?>
 <launch>
-    <node name="bioik_dataset pkg=shadow_regression type=bioik_dataset" output="screen">
-        <param name="mapfile" value="$(find shadow_regression)/data/trainning">
-        <param name="depth_img_path" value="$(find shadow_regression)/data/depth_shadow">
-        <param name="rgb_img_path" value="$(find shadow_regression)/data/rgb_shadow">
-    <node/>
-<launch/>
+    <node name="bioik_dataset" pkg="shadow_regression" type="bioik_dataset" output="screen">
+        <param name="mapfile" value="$(find shadow_regression)/data/trainning/human_robot_mapdata_pip2.csv"/>
+        <param name="depth_img_path" value="$(find shadow_regression)/data/depth_shadow2/"/>
+        <param name="rgb_img_path" value="$(find shadow_regression)/data/rgb_shadow2/"/>
+        <param name="handshape" value="$(find shadow_regression)/data/handshape/"/>
+    </node>
+</launch>
