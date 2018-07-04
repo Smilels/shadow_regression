@@ -91,16 +91,26 @@ int main(int argc, char** argv)
 
     std::string mapfile_;
     std::string handshape_;
+    std::string jointsfile_;
+    std::string end_effectorfile_;
     pnh.getParam("mapfile", mapfile_);
     pnh.getParam("depth_img_path", depth_img_path_);
     pnh.getParam("rgb_img_path", rgb_img_path_);
     pnh.getParam("handshape", handshape_);
+    pnh.getParam("jointsfile", jointsfile_);
+    pnh.getParam("end_effectorfile", end_effectorfile_);
 
     // ros::Subscriber sub_depth = n.subscribe("/camera/depth/image_raw", 1, depth_Callback);
     ros::Subscriber sub_rgb = nh.subscribe("/camera/rgb/image_raw", 1, rgb_Callback);
 
     std::string group_name = "right_hand";
     moveit::planning_interface::MoveGroupInterface mgi(group_name);
+    moveit::planning_interface::MoveGroupInterface mgi_th("rh_thumb");
+    moveit::planning_interface::MoveGroupInterface mgi_ff("rh_first_finger");
+    moveit::planning_interface::MoveGroupInterface mgi_mf("rh_middle_finger");
+    moveit::planning_interface::MoveGroupInterface mgi_rf("rh_ring_finger");
+    moveit::planning_interface::MoveGroupInterface mgi_lf("rh_little_finger");
+
     std::string base_frame = mgi.getPoseReferenceFrame();
     mgi.setGoalTolerance(0.01);
     mgi.setPlanningTime(10);
@@ -111,6 +121,11 @@ int main(int argc, char** argv)
     ROS_WARN_STREAM("move to 'open' pose");
     mgi.setNamedTarget("open");
     mgi.move();
+
+    // mgi_th.setPositionTarget(0.0598176, -0.0707044, 0.352295);
+    // mgi_ff.setPositionTarget(0.0399553, -0.0865925, 0.387136);
+    // mgi_th.move();
+    // mgi_ff.move();
 
     std::vector<std::string> failed_images;
 
@@ -227,18 +242,35 @@ int main(int argc, char** argv)
             // can not move robot when taking photoes.
             while (take_rgb || take_photo)
                 ros::Duration(0.1).sleep();
-            std::cout << mgi.getEndEffectorLink () <<std::endl;
-            // save joint angles and end_effector pose   
-            // geometry_msgs::PoseStamped end_effector_pose = mgi.getCurrentPose();
-            // std::cout << "current_pose " << end_effector_pose << std::endl;
-            //   tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
-   
-          //  geometry_msgs::PoseStamped end_effector_wrist_pose;
-           // tf_listener.transformPose("rh_wrist", end_effector_pose, end_effector_wrist_pose);
-          //  std::cout << "end_effector_wrist_pose " << end_effector_wrist_pose << std::endl;
+
+            // save joint angles and end_effector pose
+            geometry_msgs::PoseStamped end_effector_pose_th = mgi_th.getCurrentPose();
+            geometry_msgs::PoseStamped end_effector_wrist_pose_th;
+            tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformPose("rh_wrist", end_effector_pose_th, end_effector_wrist_pose_th);
+
+            geometry_msgs::PoseStamped end_effector_pose_ff = mgi_ff.getCurrentPose();
+            geometry_msgs::PoseStamped end_effector_wrist_pose_ff;
+            tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformPose("rh_wrist", end_effector_pose_ff, end_effector_wrist_pose_ff);
+
+            geometry_msgs::PoseStamped end_effector_pose_mf = mgi_mf.getCurrentPose();
+            geometry_msgs::PoseStamped end_effector_wrist_pose_mf;
+            tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformPose("rh_wrist", end_effector_pose_mf, end_effector_wrist_pose_mf);
+
+            geometry_msgs::PoseStamped end_effector_pose_rf = mgi_rf.getCurrentPose();
+            geometry_msgs::PoseStamped end_effector_wrist_pose_rf;
+            tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformPose("rh_wrist", end_effector_pose_rf, end_effector_wrist_pose_rf);
+
+            geometry_msgs::PoseStamped end_effector_pose_lf = mgi_lf.getCurrentPose();
+            geometry_msgs::PoseStamped end_effector_wrist_pose_lf;
+            tf_listener.waitForTransform("rh_wrist", base_frame, ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformPose("rh_wrist", end_effector_pose_lf, end_effector_wrist_pose_lf);
 
             std::ofstream joints_file;
-            joints_file.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/training/joints_file.csv",std::ios::app);
+            joints_file.open(jointsfile_,std::ios::app);
             joints_file << item << ',' << std::to_string( joint_values[0]) << ',' << std::to_string( joint_values[1]) <<','
             << std::to_string( joint_values[2]) <<',' << std::to_string( joint_values[3]) <<',' << std::to_string( joint_values[4]) <<','
             << std::to_string( joint_values[5]) <<',' << std::to_string( joint_values[6]) <<',' << std::to_string( joint_values[7]) <<','
@@ -248,6 +280,24 @@ int main(int argc, char** argv)
             << std::to_string( joint_values[17]) <<',' << std::to_string( joint_values[18]) <<',' << std::to_string( joint_values[19]) <<','
             << std::to_string( joint_values[20]) <<',' << std::to_string( joint_values[21]) <<',' << std::to_string( joint_values[22]) <<','
             << std::to_string( joint_values[23]) << std::endl;
+
+            std::ofstream end_effector_file;
+            end_effector_file.open(end_effectorfile_,std::ios::app);
+            end_effector_file << item << ',' << std::to_string( end_effector_pose_th.pose.position.x ) << ',' << std::to_string( end_effector_pose_th.pose.position.y ) <<','<< std::to_string( end_effector_pose_th.pose.position.z ) <<','
+            << std::to_string( end_effector_pose_th.pose.orientation.x) <<',' << std::to_string( end_effector_pose_th.pose.orientation.y) <<','
+            << std::to_string( end_effector_pose_th.pose.orientation.z) <<',' << std::to_string( end_effector_pose_th.pose.orientation.w) <<','
+            << std::to_string( end_effector_pose_ff.pose.position.x ) << ',' << std::to_string( end_effector_pose_ff.pose.position.y ) <<','<< std::to_string( end_effector_pose_ff.pose.position.z ) <<','
+            << std::to_string( end_effector_pose_ff.pose.orientation.x) <<',' << std::to_string( end_effector_pose_ff.pose.orientation.y) <<','
+            << std::to_string( end_effector_pose_ff.pose.orientation.z) <<',' << std::to_string( end_effector_pose_ff.pose.orientation.w) <<','
+            << std::to_string( end_effector_pose_mf.pose.position.x ) << ',' << std::to_string( end_effector_pose_mf.pose.position.y ) <<',' << std::to_string( end_effector_pose_mf.pose.position.z ) <<','
+            << std::to_string( end_effector_pose_mf.pose.orientation.x) <<',' << std::to_string( end_effector_pose_mf.pose.orientation.y) <<','
+            << std::to_string( end_effector_pose_mf.pose.orientation.z) <<',' << std::to_string( end_effector_pose_mf.pose.orientation.w) <<','
+            << std::to_string( end_effector_pose_rf.pose.position.x ) << ',' << std::to_string( end_effector_pose_rf.pose.position.y ) <<',' << std::to_string( end_effector_pose_rf.pose.position.z ) <<','
+            << std::to_string( end_effector_pose_rf.pose.orientation.x) <<',' << std::to_string( end_effector_pose_rf.pose.orientation.y) <<','
+            << std::to_string( end_effector_pose_rf.pose.orientation.z) <<',' << std::to_string( end_effector_pose_rf.pose.orientation.w) <<','
+            << std::to_string( end_effector_pose_lf.pose.position.x ) << ',' << std::to_string( end_effector_pose_lf.pose.position.y ) <<','<< std::to_string( end_effector_pose_lf.pose.position.z ) <<','
+            << std::to_string( end_effector_pose_lf.pose.orientation.x) <<',' << std::to_string( end_effector_pose_lf.pose.orientation.y) <<','
+            << std::to_string( end_effector_pose_lf.pose.orientation.z) <<',' << std::to_string( end_effector_pose_lf.pose.orientation.w) << std::endl;
         }
         else
         {
