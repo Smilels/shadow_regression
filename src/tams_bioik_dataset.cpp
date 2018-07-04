@@ -28,7 +28,8 @@
 bool take_photo = false;
 bool take_rgb = false;
 std::string item;
-
+std::string depth_img_path_;
+std::string rgb_img_path_;
 void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 {
     if (take_photo)
@@ -42,7 +43,7 @@ void depth_Callback(const sensor_msgs::Image::ConstPtr &image_data)
                  cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::TYPE_32FC1);
                  cv::Mat image = cv_ptr->image;
             	   image.convertTo(image, CV_16UC1, 1000);
-            	   cv::imwrite("/home/sli/pr2_shadow_ws/src/shadow_regression/data/depth_shadow/" + item, image);
+            	   cv::imwrite(depth_img_path_ + item, image);
                  take_photo = false;
             }
         }
@@ -65,7 +66,7 @@ void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
             if (image_data->encoding == "rgb8")
             {
                  cv_ptr = cv_bridge::toCvCopy(image_data,sensor_msgs::image_encodings::RGB8);
-            	   cv::imwrite("/home/sli/pr2_shadow_ws/src/shadow_regression/data/rgb_shadow/" + item, cv_ptr->image);
+            	   cv::imwrite(rgb_img_path_ + item, cv_ptr->image);
                  take_rgb = false;
             }
         }
@@ -80,12 +81,22 @@ void rgb_Callback(const sensor_msgs::Image::ConstPtr &image_data)
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "tams_bio_ik_human_robot_mapping", 1);
-    ros::NodeHandle n;
+    ros::NodeHandle nh;
+    ros::NodeHandle pnh("~");
     ros::AsyncSpinner spinner(1);
     spinner.start();
-    // ros::Subscriber sub_depth = n.subscribe("/camera/depth/image_raw", 1, depth_Callback);
-    ros::Subscriber sub_rgb = n.subscribe("/camera/rgb/image_raw", 1, rgb_Callback);
     tf::TransformListener tf_listener;
+
+    std::string mapfile_;
+    pnh.getParam("mapfile", mapfile_);
+    pnh.getParam("depth_img_path", depth_img_path_);
+    pnh.getParam("rgb_img_path", rgb_img_path_);
+    std::cout<<mapfile_<<std::endl;
+    std::cout<<depth_img_path_<<std::endl;
+    std::cout<<rgb_img_path_<<std::endl;
+
+    // ros::Subscriber sub_depth = n.subscribe("/camera/depth/image_raw", 1, depth_Callback);
+    ros::Subscriber sub_rgb = nh.subscribe("/camera/rgb/image_raw", 1, rgb_Callback);
 
     std::string group_name = "right_hand"; // right_arm_and_hand
     moveit::planning_interface::MoveGroupInterface mgi(group_name);
@@ -132,10 +143,10 @@ int main(int argc, char** argv)
       // "rh_lfmiddle"
     };
     std::vector <float> MapPositionweights {1,1,1,1,1,0.2,0.2,0.2,0.2,0.2};
-    std::vector <float> MapDirectionweights1{0.2,0.2,0.2,0.2,0.2};
-    std::vector <float> MapDirectionweights2{0.2};
+    std::vector <float> MapDirectionweights1{0.1,0.1,0.1,0.1,0.1};
+    std::vector <float> MapDirectionweights2{0.1};
 
-    std::ifstream mapfile("/home/sli/pr2_shadow_ws/src/shadow_regression/data/trainning/human_robot_mapdata_pip_tams1.csv");
+    std::ifstream mapfile(mapfile_);
     std::string line,items;
     while(std::getline(mapfile, line))
     {
@@ -189,35 +200,35 @@ int main(int argc, char** argv)
             ik_options.goals.emplace_back(new bio_ik::PositionGoal(MapPositionlinks[j], Mapposition, MapPositionweights[j]));
         }
 
-        // for (int j = 0; j< MapDirectionlinks1.size(); j++)
-        // {
-        //     int t = 30 + j * 3;
-        //     tf::Vector3 proximal_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
-        //
-        //     // transform position from current rh_wrist into base_frame
-        //     tf::Stamped<tf::Point> stamped_in(proximal_direction, ros::Time::now(), "rh_wrist");
-        //     tf::Stamped<tf::Vector3> stamped_out;
-        //     tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
-        //     tf_listener.transformVector(base_frame, stamped_in, stamped_out);
-        //     tf::Vector3 Mapdirection = stamped_out;
-        //
-        //     ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks1[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights1[j]));
-        // }
+        for (int j = 0; j< MapDirectionlinks1.size(); j++)
+        {
+            int t = 30 + j * 3;
+            tf::Vector3 proximal_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
 
-        // for (int j = 0; j< MapDirectionlinks2.size(); j++)
-        // {
-        //   int t = 45 + j*3;
-        //   tf::Vector3 dummy_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
-        //
-        //   // transform position from current rh_wrist into base_frame
-        //   tf::Stamped<tf::Point> stamped_in(dummy_direction, ros::Time::now(), "rh_wrist");
-        //   tf::Stamped<tf::Vector3> stamped_out;
-        //   tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
-        //   tf_listener.transformVector(base_frame, stamped_in, stamped_out);
-        //   tf::Vector3 Mapdirection = stamped_out;
+            // transform position from current rh_wrist into base_frame
+            tf::Stamped<tf::Point> stamped_in(proximal_direction, ros::Time::now(), "rh_wrist");
+            tf::Stamped<tf::Vector3> stamped_out;
+            tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformVector(base_frame, stamped_in, stamped_out);
+            tf::Vector3 Mapdirection = stamped_out;
 
-        //   ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks2[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights2[j]));
-        // }
+            ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks1[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights1[j]));
+        }
+
+        for (int j = 0; j< MapDirectionlinks2.size(); j++)
+        {
+            int t = 45 + j*3;
+            tf::Vector3 dummy_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
+
+            // transform position from current rh_wrist into base_frame
+            tf::Stamped<tf::Point> stamped_in(dummy_direction, ros::Time::now(), "rh_wrist");
+            tf::Stamped<tf::Vector3> stamped_out;
+            tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
+            tf_listener.transformVector(base_frame, stamped_in, stamped_out);
+            tf::Vector3 Mapdirection = stamped_out;
+
+            ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks2[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights2[j]));
+        }
 
         // special design for the position shadow can not learn
         // self_collision_free goal
