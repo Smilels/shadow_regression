@@ -100,7 +100,7 @@ int main(int argc, char** argv)
     pnh.getParam("jointsfile", jointsfile_);
     pnh.getParam("end_effectorfile", end_effectorfile_);
 
-    // ros::Subscriber sub_depth = n.subscribe("/camera/depth/image_raw", 1, depth_Callback);
+    ros::Subscriber sub_depth = nh.subscribe("/camera/depth/image_raw", 1, depth_Callback);
     ros::Subscriber sub_rgb = nh.subscribe("/camera/rgb/image_raw", 1, rgb_Callback);
 
     std::string group_name = "right_hand";
