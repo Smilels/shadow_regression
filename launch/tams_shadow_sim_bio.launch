@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <node name="tams_bioik_dataset" pkg="shadow_regression" type="tams_bioik_dataset" output="screen">
-        <param name="mapfile" value="$(find shadow_regression)/data/trainning/human_robot_mapdata_pip_tams.csv"/>
+        <param name="mapfile" value="$(find shadow_regression)/data/training/human_robot_mapdata_pip_tams.csv"/>
         <param name="depth_img_path" value="$(find shadow_regression)/data/depth_shadow2/"/>
         <param name="rgb_img_path" value="$(find shadow_regression)/data/rgb_shadow2/"/>
     </node>

@@ -258,7 +258,7 @@ def show_hand(points,type='human'):
 
 if __name__ == '__main__':
     batch_size = 1
-    base_path= "./data/trainning/"
+    base_path= "./data/training/"
     map_loader = Map_Loader(base_path)
     csvSum = open(base_path + "human_robot_mapdata_pip2.csv", "w")
     writer = csv.writer(csvSum)

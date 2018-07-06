@@ -200,35 +200,35 @@ int main(int argc, char** argv)
             ik_options.goals.emplace_back(new bio_ik::PositionGoal(MapPositionlinks[j], Mapposition, MapPositionweights[j]));
         }
 
-        for (int j = 0; j< MapDirectionlinks1.size(); j++)
-        {
-            int t = 30 + j * 3;
-            tf::Vector3 proximal_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
-
-            // transform position from current rh_wrist into base_frame
-            tf::Stamped<tf::Point> stamped_in(proximal_direction, ros::Time::now(), "rh_wrist");
-            tf::Stamped<tf::Vector3> stamped_out;
-            tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
-            tf_listener.transformVector(base_frame, stamped_in, stamped_out);
-            tf::Vector3 Mapdirection = stamped_out;
-
-            ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks1[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights1[j]));
-        }
-
-        for (int j = 0; j< MapDirectionlinks2.size(); j++)
-        {
-            int t = 45 + j*3;
-            tf::Vector3 dummy_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
-
-            // transform position from current rh_wrist into base_frame
-            tf::Stamped<tf::Point> stamped_in(dummy_direction, ros::Time::now(), "rh_wrist");
-            tf::Stamped<tf::Vector3> stamped_out;
-            tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
-            tf_listener.transformVector(base_frame, stamped_in, stamped_out);
-            tf::Vector3 Mapdirection = stamped_out;
-
-            ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks2[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights2[j]));
-        }
+        // for (int j = 0; j< MapDirectionlinks1.size(); j++)
+        // {
+        //     int t = 30 + j * 3;
+        //     tf::Vector3 proximal_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
+        //
+        //     // transform position from current rh_wrist into base_frame
+        //     tf::Stamped<tf::Point> stamped_in(proximal_direction, ros::Time::now(), "rh_wrist");
+        //     tf::Stamped<tf::Vector3> stamped_out;
+        //     tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
+        //     tf_listener.transformVector(base_frame, stamped_in, stamped_out);
+        //     tf::Vector3 Mapdirection = stamped_out;
+        //
+        //     ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks1[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights1[j]));
+        // }
+        //
+        // for (int j = 0; j< MapDirectionlinks2.size(); j++)
+        // {
+        //     int t = 45 + j*3;
+        //     tf::Vector3 dummy_direction = (tf::Vector3(csvItem[t], csvItem[t+1], csvItem[t+2])).normalized();
+        //
+        //     // transform position from current rh_wrist into base_frame
+        //     tf::Stamped<tf::Point> stamped_in(dummy_direction, ros::Time::now(), "rh_wrist");
+        //     tf::Stamped<tf::Vector3> stamped_out;
+        //     tf_listener.waitForTransform(base_frame, "rh_wrist", ros::Time::now(), ros::Duration(5.0));
+        //     tf_listener.transformVector(base_frame, stamped_in, stamped_out);
+        //     tf::Vector3 Mapdirection = stamped_out;
+        //
+        //     ik_options.goals.emplace_back(new bio_ik::DirectionGoal(MapDirectionlinks2[j], tf::Vector3(0,0,1), Mapdirection.normalized(), MapDirectionweights2[j]));
+        // }
 
         // special design for the position shadow can not learn
         // self_collision_free goal
