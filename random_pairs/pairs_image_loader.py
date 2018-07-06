@@ -9,30 +9,31 @@ import csv
 import os
 
 def main():
-    a =np.ones(1000,dtype=np.int64)
+    a =np.ones(100,dtype=np.int64)
     # when generate human pose from annotation file open Training_Annotation.txt
-    # DataFile = open("/media/robot/My Passport/data/training/Training_Annotation.txt","r")
+    DataFile1 = open("../data/Training_Annotation.txt","r")
+    lines1 = DataFile1.read().splitlines()
     # get corresponding genrated images from the num in random.csv
-    DataFile = open("./data/random.csv","r")
+    DataFile = open("../data/random1.csv","r")
     lines = DataFile.read().splitlines()
-    framelist = [ln.split(' ')[0].replace("\t", "") for ln in lines]
-    print(len(framelist))
+    framelist = [lines1[int(ln)].split(' ')[0].replace("\t", "") for ln in lines]
+    print(framelist)
 
     # random choose num from generated dataset imamge num
     # save random.csv use to human_robot_mappingfile.py generate human pose images
-    # w_file = open("./data/random.csv","w")
-    # writer = csv.writer(w_file)
-    # for x in range(1000):
-    #     t = np.random.randint(1,66585)
-    #     a[x] = t
-    #     writer.writerow([t])
-    # w_file.close()
+   # w_file = open("../data/random22.csv","w")
+   # writer = csv.writer(w_file)
+   # for x in range(100):
+   #     t = np.random.randint(1,12000)
+   #     a[x] = t
+   #     writer.writerow([t])
+   # w_file.close()
 
     # copy file
-    destination_file = "/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/choose/"
-    for i in range(1000):
+    destination_file = "../data/random_comparison/shadow_rgb/"
+    for i in framelist:
         # print(a[i])
-        source_file = "./data/rgb_shadow/" + str(int(framelist[i])+2) + ".png"
+        source_file = "../data/rgb_shadow/" + i
         if os.path.isfile(source_file):
             shutil.copy(source_file,destination_file)
 

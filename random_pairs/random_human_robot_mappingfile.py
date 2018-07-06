@@ -9,7 +9,7 @@ class Map_Loader(object):
         # load data
         self.base_path = base_path
         DataFile = open(base_path + "Training_Annotation.txt", "r")
-        randomfile = open(base_path + "random.csv", "r")
+        randomfile = open(base_path + "random1.csv", "r")
 
         lines = DataFile.read().splitlines()
         ra = randomfile.read().splitlines()
@@ -289,10 +289,10 @@ if __name__ == '__main__':
        # cv2.waitKey(2)
 
         mlab.clf
-        mlab.figure(bgcolor=(1,1,1),size=(960,1280))
+        mlab.figure(bgcolor=(1,1,1),size=(640,960))
         # show_hand(shadow_points, 'shadow')
         show_hand(local_points, 'human')
-        mlab.savefig(filename= "./data/rgb_3k4k/" + frame)
-        #mlab.close()
-        mlab.show()
+        mlab.savefig(filename= "./data/random_comparison/humanpose/" + frame)
+        mlab.close()
+        #mlab.show()
    # csvSum.close()

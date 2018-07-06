@@ -127,8 +127,6 @@ int main(int argc, char** argv)
     // mgi_th.move();
     // mgi_ff.move();
 
-    std::vector<std::string> failed_images;
-
     double timeout = 0.2;
 
     std::ifstream mapfile(mapfile_);
@@ -223,14 +221,20 @@ int main(int argc, char** argv)
             if (!(static_cast<bool>(mgi.plan(shadow_plan))))
             {
                 std::cout<< "Failed to plan pose " << item << std::endl;
-                failed_images.push_back(item);
+                std::ofstream outFile;
+                outFile.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/trainning/failed_images.csv",std::ios::app);
+                outFile << item << std::endl;
+                outFile.close();
                 continue;
             }
 
             if(!(static_cast<bool>(mgi.execute(shadow_plan))))
             {
                 std::cout << "Failed to execute pose " << item<< std::endl;
-                failed_images.push_back(item);
+    		std::ofstream outFile;
+                outFile.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/trainning/failed_images.csv",std::ios::app);
+                outFile << item << std::endl;
+                outFile.close();
                 continue;
             }
 
@@ -280,6 +284,7 @@ int main(int argc, char** argv)
             << std::to_string( joint_values[17]) <<',' << std::to_string( joint_values[18]) <<',' << std::to_string( joint_values[19]) <<','
             << std::to_string( joint_values[20]) <<',' << std::to_string( joint_values[21]) <<',' << std::to_string( joint_values[22]) <<','
             << std::to_string( joint_values[23]) << std::endl;
+            joints_file.close();
 
             std::ofstream end_effector_file;
             end_effector_file.open(end_effectorfile_,std::ios::app);
@@ -298,28 +303,21 @@ int main(int argc, char** argv)
             << std::to_string( end_effector_pose_lf.pose.position.x ) << ',' << std::to_string( end_effector_pose_lf.pose.position.y ) <<','<< std::to_string( end_effector_pose_lf.pose.position.z ) <<','
             << std::to_string( end_effector_pose_lf.pose.orientation.x) <<',' << std::to_string( end_effector_pose_lf.pose.orientation.y) <<','
             << std::to_string( end_effector_pose_lf.pose.orientation.z) <<',' << std::to_string( end_effector_pose_lf.pose.orientation.w) << std::endl;
+            end_effector_file.close();
         }
         else
         {
             std::cout << "Did not find IK solution" << std::endl;
-            failed_images.push_back(item);
+            std::ofstream outFile;
+            outFile.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/trainning/failed_images.csv",std::ios::app);
+            outFile << item << std::endl;
+            outFile.close();
         }
 
         for (int j = 0; j <ik_options.goals.size();j++)
             ik_options.goals[j].reset();
         // cv::destroyAllWindows();
         // cv::waitKey(1);
-    }
-
-    // save failed images num in order to check and run collision_free goal
-    if (failed_images.size() == 0)
-        std::cout << "No failed poses" << std::endl;
-    else
-    {
-        std::ofstream outFile;
-        outFile.open("/home/robot/workspace/shadow_hand/imitation/src/shadow_regression/data/trainning/failed_images.csv",std::ios::app);
-        for( auto& t : failed_images )
-    		    outFile << t << std::endl;
     }
 
     ros::shutdown();
