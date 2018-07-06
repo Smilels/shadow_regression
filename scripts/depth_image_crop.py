@@ -48,20 +48,33 @@ class SimpleImageLoader(torch.utils.data.Dataset):
             uv[i] = ((1/keypoints[i][2]) * mat @ keypoints[i])[0:2]
 
         # from IPython import embed;embed()
+        crop_size = 100
 
         # Image coordinates: origin at the top-left corner, u axis going right and v axis going down
-        padding = 10
         left = uv.min(axis = 0)[0]
         top = uv.min(axis=0)[1]
         right = uv.max(axis=0)[0]
         bottom = uv.max(axis=0)[1]
-        h_img = h_img.crop((left-padding, top-padding, right+padding, bottom+padding))
-        # width, height = h_img.size  # Get dimensions
-        # print(width)
-        # print(height)
-        # h_img.show()
+        h_img_ = h_img.crop((left, top, right, bottom))
+        width, height = h_img_.size  # Get dimensions
+        print(width)
+        print(height)
+        height = height + 10
+        width = width + 10
+        if height > width :
+                left_padding = float(height - width)
+                top_padding = 0
+        else:
+                left_padding = 0
+                top_padding = float(width - height)
+        h_img_.show()
+        h_img = h_img.crop((left - left_padding/2, top - top_padding/2, right + left_padding/2, bottom + top_padding/2))
+        width, height = h_img.size  # Get dimensions
+        print(width)
+        print(height)
+        h_img.show()
 
-        # TODO:normalized to 96×96 pixels
+        # TODO:resized to 96×96 pixels
         if self.transform is not None:
             h_img = self.transform(h_img)
 
@@ -71,14 +84,16 @@ class SimpleImageLoader(torch.utils.data.Dataset):
         return self.num_data
 
 if __name__ == '__main__':
-    base_path = "./data/trainning/"
+    base_path = "../data/training/"
     train = SimpleImageLoader(base_path,True,
                               transform=transforms.Compose([
-                                 transforms.Resize(96),
+                                 transforms.Resize(100),
                                  # transforms.CenterCrop(224),
                                  # transforms.ColorJitter(0.05, 0.05, 0.05, 0.05),
                                   transforms.ToTensor(),
                                  # Lighting(0.1, _imagenet_pca['eigval'], _imagenet_pca['eigvec']),
                                  #  transforms.Normalize(mean=[0.485, ], std=[0.229, ])
                               ]))
-    h_img = train.__getitem__(5)
+    h_img = train.__getitem__(67)
+    img = transforms.ToPILImage()(h_img)
+    img.save("67.png")
